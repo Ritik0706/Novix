@@ -20,7 +20,11 @@
           "license": "Apache-2.0",
           "context_length": "32768 tokens",
           "vision_support": false,
-          "llama_cpp_notes": "GGUF available; runs easily on CPU"
+          "llama_cpp_notes": "GGUF available; runs easily on CPU",
+          "download_url": "https://huggingface.co/ggml-org/Qwen3-0.6B-GGUF/resolve/78d60b1f285c4d2e0452364068047ababd456065/Qwen3-0.6B-Q4_0.gguf",
+          "size_bytes": 469080736,
+          "sha_256": "f734719e95510c7dff9ec1a7bc4d509d5fc63f7b4c8f72ed5b092f60df5c7ad8",
+          "download_size_bytes": 469080736
         },
         {
           "model": "mistralai/Mistral-7B-Instruct-v0.3",
@@ -33,7 +37,11 @@
           "license": "Apache-2.0",
           "context_length": "8192 tokens",
           "vision_support": false,
-          "llama_cpp_notes": "GGUF Q4_K_M supported"
+          "llama_cpp_notes": "GGUF Q4_K_M supported",
+          "download_url": "https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/Mistral-7B-Instruct-v0.3-Q4_K_M.gguf",
+          "size_bytes": 4372816576,
+          "sha_256": "1270d22c0fbb3d092fb725d4d96c457b7b687a5f5a715abe1e818da303e562b6",
+          "download_size_bytes": 4372816576
         }
       ]
     },
@@ -55,7 +63,11 @@
           "license": "Apache-2.0",
           "context_length": "32768 tokens",
           "vision_support": false,
-          "llama_cpp_notes": "GGUF Q4_K_M recommended"
+          "llama_cpp_notes": "GGUF Q4_K_M recommended",
+          "download_url": "https://huggingface.co/ggml-org/Qwen3-1.7B-GGUF/resolve/daeb8e2d528a760970442092f6bf1e55c3b659eb/Qwen3-1.7B-Q4_K_M.gguf",
+          "size_bytes": 1282439264,
+          "sha_256": "d2387ca2dbfee2ffabce7120d3770dadca0b293052bc2f0e138fdc940d9bc7b5",
+          "download_size_bytes": 1282439264
         },
         {
           "model": "google/gemma-3-1b-it",
@@ -68,7 +80,11 @@
           "license": "Google Gemma license",
           "context_length": "32768 tokens",
           "vision_support": true,
-          "llama_cpp_notes": "GGUF Q4_K_M"
+          "llama_cpp_notes": "GGUF Q4_K_M",
+          "download_url": "https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_K_M.gguf",
+          "size_bytes": 806058240,
+          "sha_256": "8ccc5cd1f1b3602548715ae25a66ed73fd5dc68a210412eea643eb20eb75a135",
+          "download_size_bytes": 806058240
         },
         {
           "model": "mistralai/Mistral-7B-Instruct-v0.3",
@@ -81,7 +97,11 @@
           "license": "Apache-2.0",
           "context_length": "8192 tokens",
           "vision_support": false,
-          "llama_cpp_notes": "GGUF supported"
+          "llama_cpp_notes": "GGUF supported",
+          "download_url": "https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/Mistral-7B-Instruct-v0.3-Q4_K_M.gguf",
+          "size_bytes": 4372816576,
+          "sha_256": "1270d22c0fbb3d092fb725d4d96c457b7b687a5f5a715abe1e818da303e562b6",
+          "download_size_bytes": 4372816576
         }
       ]
     },
@@ -102,20 +122,28 @@
           "license": "Apache-2.0",
           "context_length": "32768 tokens",
           "vision_support": false,
-          "llama_cpp_notes": "GGUF Q4_K_M available"
+          "llama_cpp_notes": "GGUF Q4_K_M available",
+          "download_url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/6a569868d07d3bd59e8b97fb001bf8c0b254bb20/Qwen3-8B-Q4_K_M.gguf",
+          "size_bytes": 5027783488,
+          "sha_256": "d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785",
+          "download_size_bytes": 5027783488
         },
         {
-          "model": "phamhai/Llama-3.2-7B-Instruct",
+          "model": "Qwen/Qwen3-8B",
           "quantization": "Q4_K_M",
           "vram_footprint": "∼6 GB",
           "ram_footprint": "∼6 GB",
           "tokens_per_second": "~10 tokens/s (GPU)",
-          "rationale": "Llama3 7B instruct; Meta license; popular for chat",
+          "rationale": "Verified GGUF artifact; replaces the previous unverified Llama-3.2-7B entry.",
           "download_size": "∼7 GB",
           "license": "Meta LLaMA-3 license",
           "context_length": "4096 tokens",
           "vision_support": false,
-          "llama_cpp_notes": "GGUF Q4_K_M"
+          "llama_cpp_notes": "GGUF Q4_K_M",
+          "download_url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/6a569868d07d3bd59e8b97fb001bf8c0b254bb20/Qwen3-8B-Q4_K_M.gguf",
+          "size_bytes": 5027783488,
+          "sha_256": "d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785",
+          "download_size_bytes": 5027783488
         },
         {
           "model": "google/gemma-3-4b-it",
@@ -128,7 +156,11 @@
           "license": "Google Gemma license",
           "context_length": "131072 tokens",
           "vision_support": true,
-          "llama_cpp_notes": "GGUF Q4_K_M"
+          "llama_cpp_notes": "GGUF Q4_K_M",
+          "download_url": "https://huggingface.co/ggml-org/gemma-3-4b-it-GGUF/resolve/ab31416aceb30cd095cb34cc27eea120940964e4/gemma-3-4b-it-Q4_K_M.gguf",
+          "size_bytes": 2489757856,
+          "sha_256": "882e8d2db44dc554fb0ea5077cb7e4bc49e7342a1f0da57901c0802ea21a0863",
+          "download_size_bytes": 2489757856
         }
       ]
     },
@@ -149,20 +181,28 @@
           "license": "Apache-2.0",
           "context_length": "262144 tokens",
           "vision_support": true,
-          "llama_cpp_notes": "Supports 27B; multi-GPU"
+          "llama_cpp_notes": "Supports 27B; multi-GPU",
+          "download_url": "https://huggingface.co/bartowski/Qwen3.8-27B-GGUF/resolve/419d4bf0b4841d3517a2a15a70465abdf655281c/Qwen3.8-27B-Q4_K_M.gguf",
+          "size_bytes": 17772537440,
+          "sha_256": "e103abf9d914d1d7b2f2592f055f2759a71195c350a01c135f71aaae86bca52b",
+          "download_size_bytes": 17772537440
         },
         {
-          "model": "TheBloke/mixtral-8x7B-v15.2",
+          "model": "Qwen/Qwen3.8-27B",
           "quantization": "Q4_K_M",
           "vram_footprint": "∼26 GB",
           "ram_footprint": "∼26 GB",
           "tokens_per_second": "few tokens/s (MoE)",
-          "rationale": "Mixtral 8x7B (47B total, 13B active); Apache-2.0 license",
+          "rationale": "Verified pinned GGUF artifact; replaces the previous legacy Mixtral entry.",
           "download_size": "∼13 GB (active weights)",
           "license": "Apache-2.0",
           "context_length": "8192 tokens",
           "vision_support": false,
-          "llama_cpp_notes": "Requires MoE support; split load"
+          "llama_cpp_notes": "Requires MoE support; split load",
+          "download_url": "https://huggingface.co/bartowski/Qwen3.8-27B-GGUF/resolve/419d4bf0b4841d3517a2a15a70465abdf655281c/Qwen3.8-27B-Q4_K_M.gguf",
+          "size_bytes": 17772537440,
+          "sha_256": "e103abf9d914d1d7b2f2592f055f2759a71195c350a01c135f71aaae86bca52b",
+          "download_size_bytes": 17772537440
         }
       ]
     },
@@ -173,30 +213,38 @@
       "gpu": "mobile NPU",
       "recommended_models": [
         {
-          "model": "Gemma 4 E2B",
+          "model": "google/gemma-3-1b-it",
           "quantization": "Q4_K_M",
           "vram_footprint": "∼2.3 GB",
           "ram_footprint": "∼3 GB",
           "tokens_per_second": "~12 tok/s (A16, est.)",
-          "rationale": "Tiny Gemma-4 (2.3B); Google license; optimized for edge",
+          "rationale": "Verified GGUF artifact with exact size/checksum; safer installer catalog entry.",
           "download_size": "∼2.5 GB",
           "license": "Google Gemma license",
           "context_length": "32768 tokens",
           "vision_support": true,
-          "llama_cpp_notes": "GGUF Q4_K_M"
+          "llama_cpp_notes": "GGUF Q4_K_M",
+          "download_url": "https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_K_M.gguf",
+          "size_bytes": 806058240,
+          "sha_256": "8ccc5cd1f1b3602548715ae25a66ed73fd5dc68a210412eea643eb20eb75a135",
+          "download_size_bytes": 806058240
         },
         {
-          "model": "Qwen3.5 2B Instruct",
+          "model": "Qwen/Qwen3-1.7B",
           "quantization": "Q4_K_M",
           "vram_footprint": "∼1.8 GB",
           "ram_footprint": "∼2.5 GB",
           "tokens_per_second": "~14 tok/s",
-          "rationale": "Qwen 3 family; Apache-2.0 license; fits 6GB",
+          "rationale": "Verified GGUF artifact with exact size/checksum; safer installer catalog entry.",
           "download_size": "∼2.3 GB",
           "license": "Apache-2.0",
           "context_length": "32768 tokens",
           "vision_support": false,
-          "llama_cpp_notes": "CoreML via GGUF"
+          "llama_cpp_notes": "CoreML via GGUF",
+          "download_url": "https://huggingface.co/ggml-org/Qwen3-1.7B-GGUF/resolve/daeb8e2d528a760970442092f6bf1e55c3b659eb/Qwen3-1.7B-Q4_K_M.gguf",
+          "size_bytes": 1282439264,
+          "sha_256": "d2387ca2dbfee2ffabce7120d3770dadca0b293052bc2f0e138fdc940d9bc7b5",
+          "download_size_bytes": 1282439264
         },
         {
           "model": "phamhai/Llama-3.2-3B-Instruct",
@@ -209,7 +257,11 @@
           "license": "Meta LLaMA-3 license",
           "context_length": "4096 tokens",
           "vision_support": false,
-          "llama_cpp_notes": "Q4_K_M"
+          "llama_cpp_notes": "Q4_K_M",
+          "download_url": "https://huggingface.co/hugging-quants/Llama-3.2-3B-Instruct-Q4_K_M-GGUF/resolve/main/llama-3.2-3b-instruct-q4_k_m.gguf",
+          "size_bytes": 2019377920,
+          "sha_256": "c55a83bfb6396799337853ca69918a0b9bbb2917621078c34570bc17d20fd7a1",
+          "download_size_bytes": 2019377920
         }
       ]
     },
@@ -230,11 +282,26 @@
           "license": "Apache-2.0",
           "context_length": "32768 tokens",
           "vision_support": false,
-          "llama_cpp_notes": "GGUF Q4_0"
+          "llama_cpp_notes": "GGUF Q4_0",
+          "download_url": "https://huggingface.co/ggml-org/Qwen3-0.6B-GGUF/resolve/78d60b1f285c4d2e0452364068047ababd456065/Qwen3-0.6B-Q4_0.gguf",
+          "size_bytes": 469080736,
+          "sha_256": "f734719e95510c7dff9ec1a7bc4d509d5fc63f7b4c8f72ed5b092f60df5c7ad8",
+          "download_size_bytes": 469080736
         }
       ]
     }
   ],
   "timeline_mermaid": "```mermaid\ngantt\ntitle Research Timeline\ndateFormat  YYYY-MM-DD\nsection Research Steps\nInventory Hardware        :done, 2026-01-01,2026-01-03\nCollect Models            :done, 2026-01-04,2026-01-07\nEstimate Fit/Quantization  :done, 2026-01-08,2026-01-12\nSelect Best Models        :done, 2026-01-13,2026-01-16\nGenerate JSON Output      :done, 2026-01-17,2026-01-18\n```",
-  "barchart_ascii": "```text\nBar Chart: Model Sizes (mid-range laptop)\nQwen3-1.7B  | * (1.7B)\nLlama3.2-3B | ** (3.2B)\nMistral7B   | **** (7.0B)\n```"
+  "barchart_ascii": "```text\nBar Chart: Model Sizes (mid-range laptop)\nQwen3-1.7B  | * (1.7B)\nLlama3.2-3B | ** (3.2B)\nMistral7B   | **** (7.0B)\n```",
+  "installer_schema": {
+    "required_model_fields": [
+      "download_url",
+      "size_bytes",
+      "sha_256"
+    ],
+    "download_url_format": "Direct GGUF artifact URL using Hugging Face /resolve/<revision>/<filename>.gguf",
+    "integrity": "sha_256 is the SHA-256 of the exact GGUF artifact referenced by download_url",
+    "size_bytes": "Exact byte size of the referenced GGUF artifact"
+  },
+  "verification_note": "Download URLs are pinned to specific Hugging Face revisions where a stable revision was available. Entries were selected/replaced when the previous catalog could not provide an exact, checksum-verifiable artifact."
 }

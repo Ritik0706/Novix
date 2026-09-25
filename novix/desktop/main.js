@@ -9,8 +9,35 @@ const path = require("path");
 app.setName('Novix');
 
 let djangoProcess = null;
+let djangoStartupLog = "";
 const MODEL_URL = process.env.NOVIX_MODEL_URL ||
   "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_0.gguf";
+
+function getResourceRoot() {
+  if (app.isPackaged) {
+    return process.resourcesPath;
+  }
+
+  return path.join(__dirname, "novix");
+}
+
+function getLlamaRoot() {
+  const candidates = [
+    path.join(getResourceRoot(), "llama"),
+    path.join(getResourceRoot(), "resources", "llama"),
+    path.join(getResourceRoot(), "backend", "_internal", "resources", "llama"),
+  ];
+
+  const existing = candidates.find((candidate) => fs.existsSync(candidate));
+  return existing || candidates[0];
+}
+
+function getRuntimeDirectory(runtime) {
+  return path.join(
+    getLlamaRoot(),
+    runtime
+  );
+}
 
 function getBackendEnv() {
   return {
@@ -26,6 +53,78 @@ function getFreeDiskSpace(directory) {
     "-Command",
     `(Get-PSDrive -Name '${driveLetter}').Free`,
   ], { encoding: "utf8" }).trim());
+}
+
+function getModelName(url) {
+  return decodeURIComponent(new URL(url).pathname.split("/").pop() || "AI model");
+}
+
+function requestBackendJson(pathname, method = "GET") {
+  return new Promise((resolve, reject) => {
+    const request = http.request(
+      `http://127.0.0.1:8000${pathname}`,
+      { method, headers: { "Content-Type": "application/json" } },
+      (response) => {
+        let body = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => { body += chunk; });
+        response.on("end", () => {
+          let data;
+          try {
+            data = JSON.parse(body || "{}");
+          } catch (error) {
+            reject(new Error(`Backend returned invalid JSON: ${error.message}`));
+            return;
+          }
+          if (response.statusCode < 200 || response.statusCode >= 300) {
+            reject(new Error(data.error || `Backend returned HTTP ${response.statusCode}`));
+            return;
+          }
+          resolve(data);
+        });
+      }
+    );
+    request.on("error", reject);
+    request.end();
+  });
+}
+
+function createSetupWindow(modelName, destination) {
+  const window = new BrowserWindow({
+    width: 560,
+    height: 330,
+    resizable: false,
+    webPreferences: { contextIsolation: true },
+  });
+  const escapedModel = JSON.stringify(modelName);
+  const escapedDestination = JSON.stringify(destination);
+  window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`
+    <body style="font-family:Segoe UI,sans-serif;padding:28px;color:#202124">
+      <h2>Preparing Novix</h2>
+      <p id="status">Checking model...</p>
+      <p><strong>Model:</strong> <span id="model">${modelName}</span></p>
+      <p style="word-break:break-all"><strong>Download path:</strong><br><span id="path">${destination}</span></p>
+      <progress id="progress" value="0" max="100" style="width:100%;height:18px"></progress>
+      <p id="percent">Waiting...</p>
+    </body>
+  `)}`);
+  window.webContents.on("did-finish-load", () => {
+    window.webContents.executeJavaScript(`
+      document.getElementById("model").textContent = ${escapedModel};
+      document.getElementById("path").textContent = ${escapedDestination};
+    `);
+  });
+  return window;
+}
+
+function updateSetupWindow(window, status, downloaded, total) {
+  if (!window || window.isDestroyed()) return;
+  const percent = total ? Math.floor((downloaded / total) * 100) : 0;
+  window.webContents.executeJavaScript(`
+    document.getElementById("status").textContent = ${JSON.stringify(status)};
+    document.getElementById("progress").value = ${percent};
+    document.getElementById("percent").textContent = ${JSON.stringify(total ? `${percent}% downloaded` : "Downloading...")};
+  `).catch(() => {});
 }
 
 function downloadModel(url, destination, progress, attempt = 1) {
@@ -94,27 +193,25 @@ function downloadModel(url, destination, progress, attempt = 1) {
   });
 }
 
-async function ensureModelAvailable() {
+async function ensureModelAvailable(setupWindow) {
   const dataModelDir = path.join(app.getPath('userData'), "models");
   const activeModelPath = path.join(dataModelDir, "active_model.gguf");
 
   if (fs.existsSync(activeModelPath)) {
     console.log("Using existing model:", activeModelPath);
+    updateSetupWindow(setupWindow, "Existing model found. Using it.", 1, 1);
     return;
   }
 
   fs.mkdirSync(dataModelDir, { recursive: true });
-  const freeBytes = getFreeDiskSpace(dataModelDir);
-  if (Number.isFinite(freeBytes) && freeBytes < 1024 * 1024 * 1024) {
-    throw new Error("Not enough free disk space to download the AI model. At least 1 GB is required.");
-  }
-
-  console.log("Downloading AI model from:", MODEL_URL);
-  await downloadModel(MODEL_URL, activeModelPath, (downloaded, total) => {
-    const percent = total ? Math.floor((downloaded / total) * 100) : null;
-    console.log(`Model download: ${downloaded} bytes${percent === null ? "" : ` (${percent}%)`}`);
-  });
-  console.log("Downloaded AI model to:", activeModelPath);
+  updateSetupWindow(setupWindow, "Selecting a model for this device...", 0, 0);
+  const recommendation = await requestBackendJson("/models/recommendation/");
+  const selectedModel = recommendation.recommendation.model;
+  const selectedName = selectedModel.model || getModelName(selectedModel.download_url);
+  updateSetupWindow(setupWindow, `Installing ${selectedName}...`, 0, 0);
+  await requestBackendJson("/models/recommendation/", "POST");
+  console.log("Installed recommended model:", selectedName);
+  updateSetupWindow(setupWindow, "Model download complete. Starting Novix...", 1, 1);
 }
 
 function createErrorWindow(error) {
@@ -152,12 +249,17 @@ function ensureDatabaseAvailable() {
   console.log("Copied packaged database to:", databasePath);
 }
 
-function waitForDjango(timeoutMs = 30000) {
+function waitForDjango(timeoutMs = 120000) {
   return new Promise((resolve, reject) => {
     const startedAt = Date.now();
 
     const check = () => {
-      const request = http.get("http://127.0.0.1:8000", (response) => {
+      if (djangoProcess && djangoProcess.exitCode !== null && djangoProcess.exitCode !== undefined) {
+        reject(new Error(`Django backend exited before it became ready (exit code ${djangoProcess.exitCode}).\n${djangoStartupLog.trim() || "No backend logs were captured."}`));
+        return;
+      }
+
+      const request = http.get("http://127.0.0.1:8000", { timeout: 4000 }, (response) => {
         response.resume();
         if (response.statusCode >= 200 && response.statusCode < 400) {
           resolve();
@@ -165,16 +267,20 @@ function waitForDjango(timeoutMs = 30000) {
         }
 
         if (Date.now() - startedAt >= timeoutMs) {
-          reject(new Error(`Django returned HTTP ${response.statusCode}`));
+          reject(new Error(`Django returned HTTP ${response.statusCode} before the app was ready.\n${djangoStartupLog.trim() || "No backend logs were captured."}`));
           return;
         }
 
         setTimeout(check, 500);
       });
 
+      request.on("timeout", () => {
+        request.destroy(new Error("HTTP request timed out waiting for backend"));
+      });
+
       request.on("error", () => {
         if (Date.now() - startedAt >= timeoutMs) {
-          reject(new Error("Django backend did not start in time"));
+          reject(new Error(`Django backend did not start in time after ${timeoutMs}ms.\n${djangoStartupLog.trim() || "No backend logs were captured."}`));
           return;
         }
 
@@ -186,8 +292,7 @@ function waitForDjango(timeoutMs = 30000) {
   });
 }
 
-async function startDjango() {
-  await ensureModelAvailable();
+async function startDjango(setupWindow) {
   ensureDatabaseAvailable();
 
   const projectRoot = path.join(__dirname, "..");
@@ -251,6 +356,7 @@ async function startDjango() {
   console.log("Backend path:", backendPath);
   console.log("Backend cwd:", backendCwd);
 
+  djangoStartupLog = "";
   djangoProcess = spawn(
     backendPath,
     backendArgs,
@@ -263,15 +369,20 @@ async function startDjango() {
   );
 
   djangoProcess.stdout.on("data", (data) => {
-    console.log(`[Django] ${data.toString()}`);
+    const text = data.toString();
+    djangoStartupLog += text;
+    console.log(`[Django] ${text}`);
   });
 
   djangoProcess.stderr.on("data", (data) => {
-    console.error(`[Django] ${data.toString()}`);
+    const text = data.toString();
+    djangoStartupLog += text;
+    console.error(`[Django] ${text}`);
   });
 
   djangoProcess.on("error", (error) => {
     console.error("Failed to start backend:", error);
+    djangoStartupLog += `Failed to start backend: ${error.stack || error.message}\n`;
     djangoProcess = null;
   });
 
@@ -305,9 +416,14 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  const dataModelDir = path.join(app.getPath('userData'), "models");
+  const activeModelPath = path.join(dataModelDir, "active_model.gguf");
+  const setupWindow = createSetupWindow("Selecting model...", activeModelPath);
   try {
-    await startDjango();
+    ensureDatabaseAvailable();
+    await startDjango(setupWindow);
     await waitForDjango();
+    await ensureModelAvailable(setupWindow);
   } catch (error) {
     console.error("Backend startup failed:", error);
     if (djangoProcess) {
@@ -318,6 +434,7 @@ app.whenReady().then(async () => {
     return;
   }
 
+  if (!setupWindow.isDestroyed()) setupWindow.close();
   createWindow();
 });
 

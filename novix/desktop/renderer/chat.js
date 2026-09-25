@@ -1,9 +1,12 @@
 const messages = document.getElementById("messages"); // all messages
 const text = document.getElementById("msg"); // input message
+const imageInput = document.getElementById("image-input");
 
 const API_URL = "http://127.0.0.1:8000/chat/";
 const CONVERSATION_URL = "http://127.0.0.1:8000/conversations/";
 const RECOMMENDATION_URL = "http://127.0.0.1:8000/models/recommendation/";
+const INSTALLED_MODELS_URL = "http://127.0.0.1:8000/models/installed/";
+const MODEL_STORAGE_URL = "http://127.0.0.1:8000/models/storage/";
 let currentConversation = null;
 
 async function loadRecommendation() {
@@ -42,9 +45,190 @@ async function installRecommendation() {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Installation failed");
         status.textContent = `Active: ${data.recommendation.model.model}`;
+        await refreshModelsAndStorage();
     } catch (error) {
         status.textContent = error.message;
         button.disabled = false;
+    }
+}
+
+// =====================================================
+// MODEL MANAGEMENT
+// =====================================================
+
+function formatBytes(bytes) {
+    if (typeof bytes !== "number" || Number.isNaN(bytes)) return "-";
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let value = bytes;
+    let unitIndex = 0;
+
+    while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex++;
+    }
+
+    const decimals = unitIndex === 0 || value >= 10 ? 0 : 1;
+    return `${value.toFixed(decimals)} ${units[unitIndex]}`;
+}
+
+async function loadStorage() {
+    const storageElement = document.getElementById("model-storage");
+    if (!storageElement) return;
+
+    try {
+        const response = await fetch(MODEL_STORAGE_URL);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Storage info unavailable");
+
+        storageElement.textContent = `${formatBytes(data.installed_bytes)} used of ${formatBytes(data.total_bytes)} - ${formatBytes(data.free_bytes)} free`;
+    } catch (error) {
+        storageElement.textContent = error.message || "Storage info unavailable";
+    }
+}
+
+async function loadModels() {
+    const list = document.getElementById("model-list");
+    if (!list) return;
+
+    list.innerHTML = `<p class="recommendation-status">Loading models...</p>`;
+
+    try {
+        const response = await fetch(INSTALLED_MODELS_URL);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Failed to load models");
+
+        renderModels(data.models || []);
+    } catch (error) {
+        list.innerHTML = `<p class="recommendation-status">${error.message || "Failed to load models"}</p>`;
+    }
+}
+
+async function refreshModelsAndStorage() {
+    await Promise.all([loadModels(), loadStorage()]);
+}
+
+function renderModels(models) {
+    const list = document.getElementById("model-list");
+    if (!list) return;
+    list.innerHTML = "";
+
+    if (!models.length) {
+        list.innerHTML = `<p class="recommendation-status">No models installed yet.</p>`;
+        return;
+    }
+
+    models.forEach((model) => {
+        const item = document.createElement("div");
+        item.className = `model-item${model.is_active ? " active" : ""}`;
+
+        const info = document.createElement("div");
+        info.className = "model-item-info";
+
+        const name = document.createElement("span");
+        name.className = "model-item-name";
+        name.textContent = model.display_name;
+        info.appendChild(name);
+
+        const metaParts = [];
+        if (model.quantization) metaParts.push(model.quantization);
+        if (model.context_length) metaParts.push(`${model.context_length} ctx`);
+        if (model.capabilities && model.capabilities.vision) metaParts.push("vision");
+
+        if (metaParts.length) {
+            const meta = document.createElement("span");
+            meta.className = "model-item-meta";
+            meta.textContent = metaParts.join(" - ");
+            info.appendChild(meta);
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "model-item-actions";
+
+        const status = document.createElement("p");
+        status.className = "model-item-status";
+
+        if (model.is_active) {
+            const badge = document.createElement("span");
+            badge.className = "model-active-badge";
+            badge.textContent = "Active";
+            actions.appendChild(badge);
+        } else {
+            const activateButton = document.createElement("button");
+            activateButton.className = "model-activate-btn";
+            activateButton.type = "button";
+            activateButton.textContent = "Activate";
+
+            const deleteButton = document.createElement("button");
+            deleteButton.className = "model-delete-btn";
+            deleteButton.type = "button";
+            deleteButton.textContent = "Delete";
+
+            activateButton.onclick = () => activateModel(model.id, activateButton, deleteButton, status);
+            deleteButton.onclick = () => deleteModel(model.id, activateButton, deleteButton, status);
+
+            actions.appendChild(activateButton);
+            actions.appendChild(deleteButton);
+        }
+
+        item.appendChild(info);
+        item.appendChild(actions);
+        item.appendChild(status);
+        list.appendChild(item);
+    });
+}
+
+async function activateModel(id, activateButton, deleteButton, status) {
+    activateButton.disabled = true;
+    deleteButton.disabled = true;
+    status.className = "model-item-status";
+    status.textContent = "Activating...";
+
+    try {
+        const response = await fetch(INSTALLED_MODELS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Failed to activate model");
+
+        status.classList.add("model-item-status-success");
+        status.textContent = "Model activated";
+        await refreshModelsAndStorage();
+    } catch (error) {
+        status.classList.add("model-item-status-error");
+        status.textContent = error.message || "Failed to activate model";
+        activateButton.disabled = false;
+        deleteButton.disabled = false;
+    }
+}
+
+async function deleteModel(id, activateButton, deleteButton, status) {
+    activateButton.disabled = true;
+    deleteButton.disabled = true;
+    status.className = "model-item-status";
+    status.textContent = "Deleting...";
+
+    try {
+        const response = await fetch(`${INSTALLED_MODELS_URL}${id}/`, {
+            method: "DELETE",
+        });
+
+        if (response.status === 409) throw new Error("Active model cannot be deleted");
+        if (response.status === 404) throw new Error("Model not found");
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.error || "Failed to delete model");
+        }
+
+        status.classList.add("model-item-status-success");
+        status.textContent = "Model deleted";
+        await refreshModelsAndStorage();
+    } catch (error) {
+        status.classList.add("model-item-status-error");
+        status.textContent = error.message || "Failed to delete model";
+        activateButton.disabled = false;
+        deleteButton.disabled = false;
     }
 }
 
@@ -127,7 +311,16 @@ function hideTyping() {
     if (typing) typing.remove();
 }
 
-async function sendToBackend(message) {
+function readImageAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("Unable to read the image"));
+        reader.readAsDataURL(file);
+    });
+}
+
+async function sendToBackend(message, image) {
     if (!currentConversation) {
         throw new Error("No conversation selected");
     }
@@ -135,7 +328,7 @@ async function sendToBackend(message) {
     const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation_id: currentConversation, message }),
+        body: JSON.stringify({ conversation_id: currentConversation, message, image }),
     });
 
     if (!response.ok) {
@@ -151,13 +344,25 @@ async function submitMessage() {
     const v = text.value.trim(); // trim the input string
     if (!v) return;
 
+    let image;
+    try {
+        if (imageInput.files[0]) {
+            image = await readImageAsDataUrl(imageInput.files[0]);
+        }
+    } catch (error) {
+        add(error.message, "bot");
+        return;
+    }
+
     add(v, "user");
     text.value = "";
+
+    imageInput.value = "";
 
     // Show loading
     showTyping();
     try {
-        const reply = await sendToBackend(v);
+        const reply = await sendToBackend(v, image);
 
         // Remove loading
         hideTyping();
@@ -172,6 +377,11 @@ async function submitMessage() {
 
 document.getElementById("send").onclick = submitMessage;
 document.getElementById("install-recommendation").onclick = installRecommendation;
+imageInput.onchange = () => {
+    if (imageInput.files[0]) {
+        imageInput.title = imageInput.files[0].name;
+    }
+};
 
 text.onkeydown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -521,3 +731,4 @@ document.getElementById("closeBtn").addEventListener("click", () => {
 
 initConversations();
 loadRecommendation();
+refreshModelsAndStorage();

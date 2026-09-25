@@ -36,6 +36,10 @@
         "to": "backend"
       },
       {
+        "from": "../resources/llama",
+        "to": "llama"
+      },
+      {
         "from": "../.local_data/db.sqlite3",
         "to": "database/db.sqlite3"
       }

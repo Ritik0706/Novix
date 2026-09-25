@@ -26,7 +26,7 @@ def get_unsummarized_messages(conversation):
     except ConversationSummary.DoesNotExist:
         summary = None
 
-    messages = conversation.messages.order_by("timestamp")
+    messages = conversation.messages.order_by("timestamp", "id")
 
     if summary and summary.last_summarized_message:
         messages = messages.filter(timestamp__gt = summary.last_summarized_message.timestamp)
@@ -78,7 +78,7 @@ def build_context(conversation):
     except ConversationSummary.DoesNotExist:
         summary = None
 
-    recent_messages = conversation.messages.order_by("-timestamp")[:20]
+    recent_messages = conversation.messages.order_by("-timestamp", "-id")[:20]
     recent_messages = reversed(list(recent_messages))
 
     context = []
