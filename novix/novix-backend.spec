@@ -1,14 +1,20 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_submodules
+
+hiddenimports = ['waitress']
+hiddenimports += collect_submodules('waitress')
+
+datas = [
+    ('templates', 'templates'),
+]
 
 
 a = Analysis(
     ['run_backend.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ("resources/llama/cpu/llama-b10818-bin-win-cpu-x64", "resources/llama/cpu/llama-b10818-bin-win-cpu-x64"),
-    ],
-    hiddenimports=[],
+    datas=datas,
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

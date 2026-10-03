@@ -78,7 +78,7 @@ def build_context(conversation):
     except ConversationSummary.DoesNotExist:
         summary = None
 
-    recent_messages = conversation.messages.order_by("-timestamp")[:20]
+    recent_messages = conversation.messages.order_by("-timestamp", "-id")[:20]
     recent_messages = reversed(list(recent_messages))
 
     context = []

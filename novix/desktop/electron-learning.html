@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>Novix Electron - Learning Guide</title>
+<style>
+:root{--bg:#0f172a;--surface:#1e293b;--surface2:#334155;--text:#e2e8f0;--text2:#94a3b8;--accent:#6d8cff;--accent2:#38bdf8;--green:#4ade80;--orange:#fb923c;--pink:#f472b6;--red:#ef4444;--yellow:#facc15;--code-bg:#0d1117;--border:#475569;--shadow:rgba(0,0,0,.4)}
+[data-mode="light"]{--bg:#f1f5f9;--surface:#fff;--surface2:#e2e8f0;--text:#1e293b;--text2:#64748b;--accent:#3b82f6;--accent2:#0ea5e9;--code-bg:#f8fafc;--border:#cbd5e1;--shadow:rgba(0,0,0,.1)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;overflow-x:hidden;transition:background .3s,color .3s}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+.topbar{position:sticky;top:0;z-index:100;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:12px;backdrop-filter:blur(10px)}
+.topbar h1{font-size:16px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar button,.topbar input{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer}
+.topbar input{width:140px;padding:6px 10px}
+.topbar button:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+.progress-bar{height:3px;background:var(--surface2);position:sticky;top:49px;z-index:99}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .4s}
+
+.container{max-width:800px;margin:0 auto;padding:16px}
+
+.toc{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin:20px 0}
+.toc h2{font-size:18px;margin-bottom:12px;color:var(--accent)}
+.toc ul{list-style:none;padding-left:0}
+.toc li{padding:6px 0;border-bottom:1px solid var(--border)}
+.toc li:last-child{border:none}
+.toc a{color:var(--text);font-size:14px;display:block;padding:4px 8px;border-radius:6px;transition:background .2s}
+.toc a:hover{background:var(--surface2);text-decoration:none}
+
+.section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin:20px 0}
+.section h2{font-size:20px;color:var(--accent);margin-bottom:16px;border-bottom:2px solid var(--accent);padding-bottom:8px}
+.section h3{font-size:17px;color:var(--accent2);margin:20px 0 10px}
+.section h4{font-size:15px;color:var(--orange);margin:14px 0 6px}
+.section p,.section li{font-size:14px;color:var(--text)}
+.section ul,.section ol{padding-left:20px;margin:8px 0}
+
+.concept-box{background:var(--surface2);border-left:4px solid var(--accent);border-radius:0 8px 8px 0;padding:14px 16px;margin:12px 0}
+.concept-box.green{border-color:var(--green)}
+.concept-box.orange{border-color:var(--orange)}
+.concept-box.pink{border-color:var(--pink)}
+.concept-box .label{font-size:12px;font-weight:700;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+.concept-box.green .label{color:var(--green)}
+.concept-box.orange .label{color:var(--orange)}
+.concept-box.pink .label{color:var(--pink)}
+
+.code-block{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;margin:12px 0;overflow:hidden;font-size:13px}
+.code-header{background:var(--surface2);padding:8px 14px;font-size:12px;color:var(--text2);display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
+.code-header .filename{color:var(--accent);font-weight:700}
+.code-lines{padding:0;margin:0;list-style:none;counter-reset:line}
+.code-lines li{padding:2px 14px 2px 0;display:flex;cursor:pointer;transition:background .15s;border-left:3px solid transparent}
+.code-lines li:hover{background:rgba(109,140,255,.08)}
+.code-lines li.active{background:rgba(109,140,255,.15);border-left-color:var(--accent)}
+.code-lines li .ln{display:inline-block;width:36px;text-align:right;color:var(--text2);opacity:.5;user-select:none;flex-shrink:0;padding-right:12px;font-family:'Cascadia Code','Fira Code',Consolas,monospace}
+.code-lines li code{font-family:'Cascadia Code','Fira Code',Consolas,monospace;white-space:pre;flex:1;font-size:13px}
+
+.explanation{background:var(--surface2);border-radius:8px;padding:14px 16px;margin:8px 0 12px 39px;font-size:13px;color:var(--text);border:1px solid var(--border);animation:fadeIn .3s}
+.explanation strong{color:var(--accent)}
+.explanation em{color:var(--orange);font-style:normal}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+
+.btn-explain{background:var(--accent);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;margin:4px 0 4px 39px;transition:background .2s}
+.btn-explain:hover{background:var(--accent2)}
+
+.flow-diagram{background:var(--code-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin:16px 0;overflow-x:auto}
+.flow-step{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--accent);border-radius:8px;padding:8px 14px;margin:4px;font-size:12px;white-space:nowrap}
+.flow-step .step-label{color:var(--accent);font-weight:700}
+.flow-arrow{color:var(--accent2);font-size:18px;padding:0 4px;vertical-align:middle}
+.flow-arrow-down{display:block;text-align:center;color:var(--accent2);font-size:18px;padding:4px 0}
+
+.arch-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:16px 0}
+.arch-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center}
+.arch-box h4{margin:0 0 6px;font-size:14px}
+.arch-box p{font-size:12px;color:var(--text2)}
+.arch-box.main{border-color:var(--accent)}
+.arch-box.preload{border-color:var(--orange)}
+.arch-box.renderer{border-color:var(--green)}
+
+.quiz{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin:20px 0}
+.quiz-q{margin:12px 0;padding:12px;background:var(--surface2);border-radius:8px;cursor:pointer;transition:background .2s}
+.quiz-q:hover{background:var(--border)}
+.quiz-q .q-text{font-weight:600;font-size:14px}
+.quiz-a{display:none;padding:10px 12px;background:var(--code-bg);border-radius:6px;margin-top:6px;font-size:13px;border-left:3px solid var(--green)}
+.quiz-q.open .quiz-a{display:block;animation:fadeIn .3s}
+
+.cheat-table{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0}
+.cheat-table th{text-align:left;background:var(--surface2);padding:10px;border:1px solid var(--border);color:var(--accent)}
+.cheat-table td{padding:10px;border:1px solid var(--border);vertical-align:top}
+
+.nav-buttons{display:flex;justify-content:space-between;margin:24px 0;gap:12px}
+.nav-buttons button{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px 20px;cursor:pointer;font-size:14px;transition:all .2s;flex:1}
+.nav-buttons button:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.nav-buttons button:disabled{opacity:.3;cursor:not-allowed}
+
+.glossary-item{padding:8px 0;border-bottom:1px solid var(--border)}
+.glossary-item dt{font-weight:700;color:var(--accent);font-size:14px}
+.glossary-item dd{font-size:13px;color:var(--text2);margin-left:0;padding-top:2px}
+
+.skipped{color:var(--text2);font-style:italic;font-size:12px;padding:2px 14px 2px 0;display:flex;align-items:center;gap:6px}
+.skipped::before{content:'--';color:var(--text2);opacity:.5}
+
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;margin-right:6px}
+.tag.electron{background:rgba(109,140,255,.2);color:var(--accent)}
+.tag.node{background:rgba(74,222,128,.2);color:var(--green)}
+.tag.electron{background:rgba(109,140,255,.2);color:var(--accent)}
+
+footer{text-align:center;padding:30px;color:var(--text2);font-size:12px}
+
+@media(max-width:600px){
+  .container{padding:10px}
+  .section{padding:14px}
+  .topbar h1{font-size:14px}
+  .arch-grid{grid-template-columns:1fr}
+  .code-lines li code{font-size:11px}
+  .flow-step{font-size:10px;padding:6px 10px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Novix Electron Guide</h1>
+  <input type="text" id="searchBox" placeholder="Search...">
+  <button onclick="toggleMode()">Light/Dark</button>
+</div>
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+<div class="container">
+
+<!-- ============ TOC ============ -->
+<div class="toc" id="sec-toc">
+  <h2>Table of Contents</h2>
+  <ul>
+    <li><a href="#sec-overview">1. What is Electron? (Project Overview)</a></li>
+    <li><a href="#sec-package">2. package.json - The Project Setup</a></li>
+    <li><a href="#sec-main">3. main.js - The Main Process (Boss of the App)</a></li>
+    <li><a href="#sec-preload">4. preload.js - The Safe Messenger</a></li>
+    <li><a href="#sec-renderer">5. Renderer - The Close Button Connection</a></li>
+    <li><a href="#sec-flow">6. Complete Electron Flow (Start to Finish)</a></li>
+    <li><a href="#sec-ipc">7. IPC Communication (How Parts Talk)</a></li>
+    <li><a href="#sec-architecture">8. Architecture Diagram</a></li>
+    <li><a href="#sec-whatif">9. "What Happens When I Run This?"</a></li>
+    <li><a href="#sec-absent">10. Important Electron Concepts NOT in This Project</a></li>
+    <li><a href="#sec-summary">11. Electron in 5 Minutes</a></li>
+    <li><a href="#sec-quiz">12. Can I Explain This Project Myself?</a></li>
+    <li><a href="#sec-cheat">13. Important Electron Code Cheat Sheet</a></li>
+    <li><a href="#sec-glossary">14. Beginner Glossary</a></li>
+  </ul>
+</div>
+
+<!-- ============ SECTION 1: OVERVIEW ============ -->
+<div class="section" id="sec-overview">
+  <h2>1. What is Electron? (Project Overview)</h2>
+
+  <h3>What is Electron?</h3>
+  <p>Electron lets you build <strong>desktop applications</strong> using web technologies (HTML, CSS, JavaScript). Instead of making a website, you make a real program that runs on your computer - like Photoshop or Word.</p>
+
+  <div class="concept-box green">
+    <div class="label">Think of it like this</div>
+    <p>Imagine you have a toy car that looks like a real car but is controlled by a remote. Electron is the "toy car" - it looks like a regular app, but under the hood it's running a website (Chromium browser) with extra powers (Node.js to access your computer).</p>
+  </div>
+
+  <h3>In Our Project (Novix)</h3>
+  <p>Novix is a <strong>local AI chat assistant</strong>. Electron wraps a chat interface around a Python backend and an AI model. The Electron parts are:</p>
+
+  <ul>
+    <li><strong>main.js</strong> - The boss. Controls everything from the background.</li>
+    <li><strong>preload.js</strong> - The messenger. Safely passes messages between the boss and the chat window.</li>
+    <li><strong>package.json</strong> - The instruction manual. Tells Electron what to do.</li>
+    <li><strong>chat.js</strong> (renderer) - The visible chat window. Talks to the backend.</li>
+  </ul>
+
+  <h3>Two Worlds Inside Electron</h3>
+  <div class="arch-grid">
+    <div class="arch-box main">
+      <h4>Main Process</h4>
+      <p>The "boss". Has full access to your computer. Creates windows, manages files, runs background tasks.</p>
+    </div>
+    <div class="arch-box renderer">
+      <h4>Renderer Process</h4>
+      <p>The "face". This is what you see - the HTML/CSS/JS in the window. Like a web page.</p>
+    </div>
+    <div class="arch-box preload">
+      <h4>Preload Script</h4>
+      <p>The "messenger". Safely bridges the boss and the face. Only exposes specific safe functions.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SECTION 2: PACKAGE.JSON ============ -->
+<div class="section" id="sec-package">
+  <h2>2. package.json - The Project Setup</h2>
+  <p>This file is like the <strong>ID card</strong> of the Electron app. It tells Electron: "What's my name? What file should I start with? What tools do I need?"</p>
+
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/package.json</span><span>Electron Config</span></div>
+    <ol class="code-lines" data-file="package.json">
+      <li data-line="1"><span class="ln">1</span><code>{</code></li>
+      <li data-line="2"><span class="ln">2</span><code>  "name": "novix",</code></li>
+      <li data-line="3"><span class="ln">3</span><code>  "version": "1.0.0",</code></li>
+      <li data-line="4"><span class="ln">4</span><code>  "description": "Novix local AI assistant",</code></li>
+      <li data-line="5"><span class="ln">5</span><code>  "author": "Novix",</code></li>
+      <li data-line="6"><span class="ln">6</span><code>  "main": "main.js",</code></li>
+      <li data-line="7-10"><span class="ln">7-10</span><code>  "scripts": {</code></li>
+      <li data-line="11-14"><span class="ln">11-14</span><code>  "devDependencies": { ... },</code></li>
+      <li data-line="15-48"><span class="ln">15-48</span><code>  "build": { ... }</code></li>
+      <li data-line="49"><span class="ln">49</span><code>}</code></li>
+    </ol>
+  </div>
+
+  <h4>Line-by-Line Explanation</h4>
+
+  <div class="concept-box">
+    <div class="label">Line 2: "name": "novix"</div>
+    <p><strong>What:</strong> The name of your app.</p>
+    <p><strong>Why:</strong> Electron needs to know what to call this project. It's like naming your baby.</p>
+    <p><strong>Simple example:</strong> If your app was a book, this is the title on the cover.</p>
+  </div>
+
+  <div class="concept-box">
+    <div class="label">Line 3: "version": "1.0.0"</div>
+    <p><strong>What:</strong> The version number of your app.</p>
+    <p><strong>Why:</strong> So when you update later, you can track what changed. Version 1.0.0 means "first real release".</p>
+  </div>
+
+  <div class="concept-box green">
+    <div class="label">Line 6: "main": "main.js" (THE MOST IMPORTANT LINE)</div>
+    <p><strong>What:</strong> Tells Electron: "When you start, run the file called <code>main.js</code>."</p>
+    <p><strong>Why:</strong> This is the entry point - the first file Electron reads. Without it, Electron doesn't know where to start. It's like telling someone "The front door is on the left side of the building."</p>
+    <p><strong>How it connects:</strong> This points to <code>desktop/main.js</code> which we'll analyze next.</p>
+  </div>
+
+  <div class="concept-box">
+    <div class="label">Lines 7-10: "scripts"</div>
+    <p><strong>What:</strong> Shortcuts for running commands.</p>
+    <ul>
+      <li><code>"start": "electron ."</code> - When you type <code>npm start</code>, it runs the Electron app.</li>
+      <li><code>"dist": "electron-builder"</code> - When you type <code>npm run dist</code>, it builds the app into an installer (.exe).</li>
+    </ul>
+    <p><strong>Why:</strong> So you don't have to type long commands. Just <code>npm start</code> and the app launches!</p>
+  </div>
+
+  <div class="concept-box orange">
+    <div class="label">Lines 11-14: "devDependencies"</div>
+    <p><strong>What:</strong> The tools you need to build the app (but not in the final product).</p>
+    <ul>
+      <li><code>"electron": "^43.1.1"</code> - Electron itself (version 43).</li>
+      <li><code>"electron-builder": "^26.15.3"</code> - Tool to package the app into an installer.</li>
+    </ul>
+    <p><strong>Why:</strong> You need Electron to develop, and electron-builder to ship. They're "dev" dependencies because end users don't need them installed separately.</p>
+  </div>
+
+  <div class="concept-box pink">
+    <div class="label">Lines 15-48: "build" (electron-builder config)</div>
+    <p><strong>What:</strong> Instructions for building the final app.</p>
+    <ul>
+      <li><code>"appId": "com.novix.app"</code> - Unique ID for the app (like an app store identifier).</li>
+      <li><code>"files": ["main.js", "preload.js", "renderer/**/*"]</code> - These files get bundled into the final app.</li>
+      <li><code>"extraResources"</code> - Bundles the Python backend (.exe) and SQLite database alongside the Electron app.</li>
+      <li><code>"win": { "target": "nsis" }</code> - Creates a Windows installer.</li>
+      <li><code>"nsis": { "oneClick": false }</code> - Shows an install wizard (not silent install).</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ SECTION 3: MAIN.JS ============ -->
+<div class="section" id="sec-main">
+  <h2>3. main.js - The Main Process (Boss of the App)</h2>
+  <p>This is the <strong>most important Electron file</strong>. The Main Process is the brain. It has access to everything on your computer (file system, network, other programs). It creates windows and manages the app's life.</p>
+
+  <div class="concept-box green">
+    <div class="label">Think of it like this</div>
+    <p>The Main Process is the <strong>manager of a store</strong>. The manager handles money (file system), hires people (spawns Django), locks the doors (app lifecycle), and controls the store layout (creates windows). The customers (users) only see the store window (renderer), but the manager controls everything behind the scenes.</p>
+  </div>
+
+  <!-- PART 3A: IMPORTS -->
+  <h3>Part A: Imports (Getting Tools Ready)</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/main.js - Lines 1-7</span><span>Imports</span></div>
+    <ol class="code-lines" data-file="main.js">
+      <li data-line="1"><span class="ln">1</span><code><span class="tag electron">Electron</span>const { app, BrowserWindow, screen, ipcMain } = require("electron");</code></li>
+      <li data-line="2"><span class="ln">2</span><code><span class="tag node">Node.js</span>const { spawn } = require("child_process");</code></li>
+      <li data-line="3"><span class="ln">3</span><code><span class="tag node">Node.js</span>const { execFileSync } = require("child_process");</code></li>
+      <li data-line="4"><span class="ln">4</span><code><span class="tag node">Node.js</span>const https = require("https");</code></li>
+      <li data-line="5"><span class="ln">5</span><code><span class="tag node">Node.js</span>const fs = require("fs");</code></li>
+      <li data-line="6"><span class="ln">6</span><code><span class="tag node">Node.js</span>const http = require("http");</code></li>
+      <li data-line="7"><span class="ln">7</span><code><span class="tag node">Node.js</span>const path = require("path");</code></li>
+    </ol>
+  </div>
+
+  <button class="btn-explain" onclick="toggleAllExplain(this)">Show All Explanations</button>
+  <div class="all-explanations" style="display:none">
+
+  <div class="explanation" data-for="main.js-1">
+    <strong>Line 1:</strong> <code>const { app, BrowserWindow, screen, ipcMain } = require("electron");</code><br><br>
+    <strong>What:</strong> Grabs 4 tools from Electron:<br>
+    &bull; <code>app</code> - Controls the app itself (start, quit, events).<br>
+    &bull; <code>BrowserWindow</code> - Creates a window (like opening a new browser tab, but it's your app).<br>
+    &bull; <code>screen</code> - Gets info about the monitor (screen size).<br>
+    &bull; <code>ipcMain</code> - Listens for messages from the renderer (chat window).<br><br>
+    <strong>Why:</strong> These are the 4 Electron superpowers this app uses. Without them, Electron is just a blank page.<br>
+    <strong>Simple example:</strong> It's like grabbing a hammer, screwdriver, wrench, and tape measure from a toolbox. You need all four to build the house.
+  </div>
+
+  <div class="explanation" data-for="main.js-2">
+    <strong>Line 2:</strong> <code>const { spawn } = require("child_process");</code><br><br>
+    <strong>What:</strong> Gets the <code>spawn</code> tool from Node.js. This lets you <strong>start another program</strong> from inside your Electron app.<br>
+    <strong>Why:</strong> This app needs to start the Python Django backend as a separate program. Electron can't run Python directly, so it <em>spawns</em> it as a child process.<br>
+    <strong>Simple example:</strong> Like a mom (Electron) hiring a babysitter (Django) to watch the kids. The babysitter is a separate person, but the mom can talk to them and fire them.
+  </div>
+
+  <div class="explanation" data-for="main.js-3">
+    <strong>Line 3:</strong> <code>const { execFileSync } = require("child_process");</code><br><br>
+    <strong>What:</strong> Another way to run commands, but it runs a command, waits for it to finish, and gives you the result.<br>
+    <strong>Why:</strong> Used later to check free disk space by running a PowerShell command.<br>
+    <strong>Simple example:</strong> <code>spawn</code> is like starting a long phone call. <code>execFileSync</code> is like asking "What time is it?" and hanging up after you get the answer.
+  </div>
+
+  <div class="explanation" data-for="main.js-4">
+    <strong>Line 4:</strong> <code>const https = require("https");</code><br><br>
+    <strong>What:</strong> A Node.js tool for making secure web requests (HTTPS).<br>
+    <strong>Why:</strong> Used to download the AI model file from HuggingFace (a website).<br>
+    <strong>Simple example:</strong> Like having a web browser inside your code that can download files.
+  </div>
+
+  <div class="explanation" data-for="main.js-5">
+    <strong>Line 5:</strong> <code>const fs = require("fs");</code><br><br>
+    <strong>What:</strong> File System module - lets you read, write, copy, delete, and check files on your computer.<br>
+    <strong>Why:</strong> This app saves the AI model to disk, copies databases, and checks if files exist. <code>fs</code> does all of that.<br>
+    <strong>Simple example:</strong> Like having a filing cabinet key - you can open drawers, put papers in, take papers out.
+  </div>
+
+  <div class="explanation" data-for="main.js-6">
+    <strong>Line 6:</strong> <code>const http = require("http");</code><br><br>
+    <strong>What:</strong> A Node.js tool for making regular (non-secure) web requests.<br>
+    <strong>Why:</strong> Used to check if the Django backend is running by pinging <code>http://127.0.0.1:8000</code>.<br>
+    <strong>Simple example:</strong> Like knocking on a door to check if someone is home.
+  </div>
+
+  <div class="explanation" data-for="main.js-7">
+    <strong>Line 7:</strong> <code>const path = require("path");</code><br><br>
+    <strong>What:</strong> A tool for working with file and folder paths.<br>
+    <strong>Why:</strong> Different computers use different path formats (Windows: <code>C:\folder\file</code>, Mac: <code>/folder/file</code>). <code>path</code> handles both so your code works everywhere.<br>
+    <strong>Simple example:</strong> Like a GPS that always knows the right address no matter what city you're in.
+  </div>
+
+  </div><!-- end explanations -->
+
+  <!-- PART 3B: APP NAME & GLOBALS -->
+  <h3>Part B: App Name & Global Variables</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/main.js - Lines 9-13</span><span>Setup</span></div>
+    <ol class="code-lines" data-file="main.js">
+      <li data-line="9"><span class="ln">9</span><code><span class="tag electron">Electron</span>app.setName('Novix');</code></li>
+      <li data-line="11"><span class="ln">11</span><code><span class="tag node">Node.js</span>let djangoProcess = null;</code></li>
+      <li data-line="12-13"><span class="ln">12-13</span><code><span class="tag node">Node.js</span>const MODEL_URL = process.env.NOVIX_MODEL_URL || "https://huggingface.co/.../Llama-3.2-1B-Instruct-Q4_0.gguf";</code></li>
+    </ol>
+  </div>
+
+  <div class="explanation">
+    <strong>Line 9:</strong> <code>app.setName('Novix');</code><br>
+    <strong>What:</strong> Sets the app's display name to "Novix".<br>
+    <strong>Why:</strong> This name shows up in the taskbar, the Alt+Tab menu, and the operating system. Without it, the window might show "Electron" instead of "Novix".<br>
+    <strong>How it connects:</strong> This runs before the app is ready. It's setting up identity before the show begins.
+  </div>
+
+  <div class="explanation">
+    <strong>Line 11:</strong> <code>let djangoProcess = null;</code><br>
+    <strong>What:</strong> Creates a variable to keep track of the Django backend program. Starts as <code>null</code> (empty).<br>
+    <strong>Why:</strong> We need to remember the Django process so we can <em>kill it later</em> when the app closes. If we don't clean up, Django would keep running in the background like a zombie!<br>
+    <strong>Simple example:</strong> Like writing down the babysitter's phone number so you can call them home when you return.
+  </div>
+
+  <div class="explanation">
+    <strong>Lines 12-13:</strong> <code>const MODEL_URL = ...</code><br>
+    <strong>What:</strong> Stores the web address where the AI model file lives. If the environment variable <code>NOVIX_MODEL_URL</code> is set, use that; otherwise use the default HuggingFace URL.<br>
+    <strong>Why:</strong> The AI model is a large file (~600MB) that needs to be downloaded before the chat can work. This URL tells the app where to get it.<br>
+    <strong>Simple example:</strong> Like writing down the address of the store where you need to buy groceries.
+  </div>
+
+  <!-- PART 3C: HELPER FUNCTIONS -->
+  <h3>Part C: Helper Functions</h3>
+
+  <h4>getBackendEnv() - Lines 15-20</h4>
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/main.js - Lines 15-20</span><span>Helper</span></div>
+    <ol class="code-lines" data-file="main.js">
+      <li data-line="15"><span class="ln">15</span><code>function getBackendEnv() {</code></li>
+      <li data-line="16"><span class="ln">16</span><code>  return {</code></li>
+      <li data-line="17"><span class="ln">17</span><code>    ...process.env,</code></li>
+      <li data-line="18"><span class="ln">18</span><code>    NOVIX_DATA_DIR: app.getPath('userData'),</code></li>
+      <li data-line="19"><span class="ln">19</span><code>  };</code></li>
+      <li data-line="20"><span class="ln">20</span><code>}</code></li>
+    </ol>
+  </div>
+
+  <div class="explanation">
+    <strong>What:</strong> Creates an "environment" object - a list of settings passed to Django when it starts.<br>
+    <strong>Line 17:</strong> <code>...process.env</code> - Copies ALL existing system settings (so Django can find Python, etc).<br>
+    <strong>Line 18:</strong> <code>NOVIX_DATA_DIR: app.getPath('userData')</code> - Adds one special setting telling Django WHERE to save data. <code>app.getPath('userData')</code> returns a safe folder Electron is allowed to use.<br>
+    <strong>Why:</strong> Django needs to know where to put its database and files. <code>userData</code> is a special folder chosen by the operating system (like <code>C:\Users\you\AppData\Local\novix</code>).
+  </div>
+
+  <h4>getFreeDiskSpace() - Lines 22-29</h4>
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/main.js - Lines 22-29</span><span>Helper</span></div>
+    <ol class="code-lines" data-file="main.js">
+      <li data-line="22"><span class="ln">22</span><code>function getFreeDiskSpace(directory) {</code></li>
+      <li data-line="23"><span class="ln">23</span><code>  const driveLetter = path.parse(directory).root[0];</code></li>
+      <li data-line="24"><span class="ln">24</span><code>  return Number(execFileSync("powershell.exe", [</code></li>
+      <li data-line="25"><span class="ln">25</span><code>    "-NoProfile",</code></li>
+      <li data-line="26"><span class="ln">26</span><code>    "-Command",</code></li>
+      <li data-line="27"><span class="ln">27</span><code>    `(Get-PSDrive -Name '${driveLetter}').Free`,</code></li>
+      <li data-line="28"><span class="ln">28</span><code>  ], { encoding: "utf8" }).trim());</code></li>
+      <li data-line="29"><span class="ln">29</span><code>}</code></li>
+    </ol>
+  </div>
+
+  <div class="explanation">
+    <strong>What:</strong> Checks how much free space is left on the hard drive.<br>
+    <strong>Line 23:</strong> Extracts the drive letter (e.g., "C") from the path.<br>
+    <strong>Lines 24-28:</strong> Runs a PowerShell command to get the free space in bytes.<br>
+    <strong>Why:</strong> Before downloading the AI model (~600MB), we need to make sure there's enough room. Nobody wants an error halfway through downloading!<br>
+    <strong>How it connects:</strong> Called by <code>ensureModelAvailable()</code> before downloading.
+  </div>
+
+  <!-- PART 3D: DOWNLOAD MODEL -->
+  <h3>Part D: downloadModel() - The Big Download Function</h3>
+  <p>This is the longest function. It downloads the AI model file from the internet with support for <strong>resuming</strong> (continuing where it left off if interrupted) and <strong>retrying</strong> (trying again if it fails).</p>
+
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/main.js - Lines 31-95</span><span>Model Download</span></div>
+    <ol class="code-lines" data-file="main.js">
+      <li data-line="31"><span class="ln">31</span><code>function downloadModel(url, destination, progress, attempt = 1) {</code></li>
+      <li data-line="32"><span class="ln">32</span><code>  const partPath = `${destination}.part`;</code></li>
+      <li data-line="34"><span class="ln">34</span><code>  return new Promise((resolve, reject) => {</code></li>
+      <li data-line="35"><span class="ln">35</span><code>    const request = (requestUrl, redirects = 0) => {</code></li>
+      <li data-line="36-38"><span class="ln">36-38</span><code>      if (redirects > 5) { reject(new Error("Too many redirects...")); return; }</code></li>
+      <li data-line="41"><span class="ln">41</span><code>      const existingBytes = fs.existsSync(partPath) ? fs.statSync(partPath).size : 0;</code></li>
+      <li data-line="42"><span class="ln">42</span><code>      const requestOptions = new URL(requestUrl);</code></li>
+      <li data-line="43-45"><span class="ln">43-45</span><code>      if (existingBytes) { requestOptions.headers = { Range: `bytes=${existingBytes}-` }; }</code></li>
+      <li data-line="47"><span class="ln">47</span><code>      https.get(requestOptions, (response) => {</code></li>
+      <li data-line="48-52"><span class="ln">48-52</span><code>        if ([301,302,303,307,308].includes(response.statusCode)) { ... follow redirect ... }</code></li>
+      <li data-line="54-58"><span class="ln">54-58</span><code>        if (response.statusCode !== (existingBytes ? 206 : 200)) { ... error ... }</code></li>
+      <li data-line="60"><span class="ln">60</span><code>        const responseLength = Number(response.headers["content-length"] || 0);</code></li>
+      <li data-line="61"><span class="ln">61</span><code>        const totalBytes = existingBytes + responseLength;</code></li>
+      <li data-line="62"><span class="ln">62</span><code>        const output = fs.createWriteStream(partPath, { flags: existingBytes ? "a" : "w" });</code></li>
+      <li data-line="65-68"><span class="ln">65-68</span><code>        response.on("data", (chunk) => { downloaded += chunk.length; progress(downloaded, totalBytes); });</code></li>
+      <li data-line="74-81"><span class="ln">74-81</span><code>        output.on("finish", () => { fs.renameSync(partPath, destination); resolve(); });</code></li>
+      <li data-line="82"><span class="ln">82</span><code>        response.pipe(output);</code></li>
+      <li data-line="87-94"><span class="ln">87-94</span><code>  }).catch((error) => { ... retry logic ... });</code></li>
+    </ol>
+  </div>
+
+  <button class="btn-explain" onclick="toggleAllExplain(this)">Show All Explanations</button>
+  <div class="all-explanations" style="display:none">
+
+  <div class="explanation">
+    <strong>Line 31:</strong> <code>function downloadModel(url, destination, progress, attempt = 1)</code><br>
+    <strong>What:</strong> A function that takes 4 things: where to download from, where to save, a progress callback, and which attempt number this is.<br>
+    <strong>Why:</strong> We need all this info to download a file properly and show progress.
+  </div>
+
+  <div class="explanation">
+    <strong>Line 32:</strong> <code>const partPath = `${destination}.part`;</code><br>
+    <strong>What:</strong> Creates a temporary filename. If the real file is <code>model.gguf</code>, the temp file is <code>model.gguf.part</code>.<br>
+    <strong>Why:</strong> We download to a <code>.part</code> file first. If the download gets interrupted, we know it's incomplete. When done, we rename it to the final name. This prevents having a half-downloaded file pretending to be complete!<br>
+    <strong>Simple example:</strong> Like writing a letter in pencil first, then tracing it in pen only when it's perfect.
+  </div>
+
+  <div class="explanation">
+    <strong>Line 34:</strong> <code>return new Promise((resolve, reject) => {</code><br>
+    <strong>What:</strong> Wraps the download in a "Promise" - a special object that says "I'm doing something that will finish later."<br>
+    <strong>Why:</strong> Downloading takes time. A Promise lets us say <code>await downloadModel(...)</code> and wait without freezing the whole app.
+  </div>
+
+  <div class="explanation">
+    <strong>Lines 41-45: The Resume Magic</strong><br>
+    <strong>What:</strong> Checks if we already downloaded part of the file before. If yes, it tells the server "Hey, I already have bytes 0-50000, send me the rest!" using the <code>Range</code> header.<br>
+    <strong>Why:</strong> The model is ~600MB. If your internet drops at 590MB, you don't want to restart from zero! This resumes from where it stopped.
+  </div>
+
+  <div class="explanation">
+    <strong>Lines 60-62: Creating the Write Stream</strong><br>
+    <strong>What:</strong> Opens a file for writing. If we're resuming, it opens in <em>append</em> mode (<code>"a"</code>); otherwise it creates a new file (<code>"w"</code>).<br>
+    <strong>Why:</strong> A "stream" is like a water pipe - data flows through it continuously instead of loading everything into memory at once (which would crash with a 600MB file!).
+  </div>
+
+  <div class="explanation">
+    <strong>Line 82:</strong> <code>response.pipe(output);</code><br>
+    <strong>What:</strong> Connects the download to the file. Data flows from the internet response straight into the file.<br>
+    <strong>Why:</strong> This is the actual moment data starts saving. <code>pipe</code> is like connecting a hose - water (data) flows automatically.
+  </div>
+
+  <div class="explanation">
+    <strong>Lines 87-94: Retry Logic</strong><br>
+    <strong>What:</strong> If the download fails, it waits a few seconds and tries again (up to 3 times).<br>
+    <strong>Why:</strong> Internet is unreliable. Retries fix temporary problems. 1 second wait on attempt 1, 2 seconds on attempt 2.
+  </div>
+
+  </div>
+
+  <!-- PART 3E: ensureModelAvailable -->
+  <h3>Part E: ensureModelAvailable() - Line 97-118</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/main.js - Lines 97-118</span><span>Model Check</span></div>
+    <ol class="code-lines" data-file="main.js">
+      <li data-line="97"><span class="ln">97</span><code>async function ensureModelAvailable() {</code></li>
+      <li data-line="98"><span class="ln">98</span><code>  const dataModelDir = path.join(app.getPath('userData'), "models");</code></li>
+      <li data-line="99"><span class="ln">99</span><code>  const activeModelPath = path.join(dataModelDir, "active_model.gguf");</code></li>
+      <li data-line="101-104"><span class="ln">101-104</span><code>  if (fs.existsSync(activeModelPath)) { console.log("Using existing model..."); return; }</code></li>
+      <li data-line="106"><span class="ln">106</span><code>  fs.mkdirSync(dataModelDir, { recursive: true });</code></li>
+      <li data-line="107-109"><span class="ln">107-109</span><code>  const freeBytes = getFreeDiskSpace(dataModelDir); if (freeBytes < 1GB) throw new Error(...);</code></li>
+      <li data-line="112-116"><span class="ln">112-116</span><code>  await downloadModel(MODEL_URL, activeModelPath, (downloaded, total) => { ... });</code></li>
+      <li data-line="117"><span class="ln">117</span><code>  console.log("Downloaded AI model to:", activeModelPath);</code></li>
+      <li data-line="118"><span class="ln">118</span><code>}</code></li>
+    </ol>
+  </div>
+
+  <div class="explanation">
+    <strong>What:</strong> Makes sure the AI model file exists. If it does, great - skip. If not, check disk space and download it.<br>
+    <strong>Line 101-104:</strong> Quick check - if the model file already exists, we're done! No need to download again.<br>
+    <strong>Line 106:</strong> Creates the <code>models</code> folder if it doesn't exist. <code>recursive: true</code> means "create parent folders too if needed."<br>
+    <strong>Line 107-109:</strong> Safety check - stops if there's less than 1GB free.<br>
+    <strong>Line 112-116:</strong> The actual download with a progress reporter that logs the percentage.<br>
+    <strong>How it connects:</strong> Called at the very beginning of <code>startDjango()</code> - the model must exist BEFORE Django starts.
+  </div>
+
+  <!-- PART 3F: ERROR WINDOW -->
+  <h3>Part F: createErrorWindow() - Lines 120-131</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/main.js - Lines 120-131</span><span>Error Display</span></div>
+    <ol class="code-lines" data-file="main.js">
+      <li data-line="120"><span class="ln">120</span><code>function createErrorWindow(error) {</code></li>
+      <li data-line="121-126"><span class="ln">121-126</span><code>  const window = new BrowserWindow({ width: 560, height: 360, resizable: false, webPreferences: { contextIsolation: true } });</code></li>
+      <li data-line="127-129"><span class="ln">127-129</span><code>  const message = String(error?.message || error).replace(/[&<>"']/g, ...);</code></li>
+      <li data-line="130"><span class="ln">130</span><code>  window.loadURL(`data:text/html,<body...><h2>Novix setup failed</h2><p>${message}</p>...</body>`);</code></li>
+      <li data-line="131"><span class="ln">131</span><code>}</code></li>
+    </ol>
+  </div>
+
+  <div class="explanation">
+    <strong>What:</strong> If something goes wrong during startup (model download fails, Django can't start), this shows a simple error window.<br>
+    <strong>Line 121-126:</strong> Creates a small, non-resizable window with just the error.<br>
+    <strong>Line 127-129:</strong> Cleans up the error message to prevent "XSS attacks" (bad code hidden in text). This replaces dangerous characters like <code>&lt;</code> and <code>&gt;</code> with safe versions.<br>
+    <strong>Line 130:</strong> Loads a tiny HTML page directly using <code>data:</code> URL instead of loading a file. No need for a separate HTML file for a simple error message!<br>
+    <strong>Why:</strong> The user needs to know WHY the app failed. Without this, they'd just see nothing happen.
+  </div>
+
+  <!-- PART 3G: DATABASE -->
+  <h3>Part G: ensureDatabaseAvailable() - Lines 133-153</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/main.js - Lines 133-153</span><span>Database Setup</span></div>
+    <ol class="code-lines" data-file="main.js">
+      <li data-line="133"><span class="ln">133</span><code>function ensureDatabaseAvailable() {</code></li>
+      <li data-line="134"><span class="ln">134</span><code>  const dataDir = app.getPath('userData');</code></li>
+      <li data-line="135"><span class="ln">135</span><code>  const databasePath = path.join(dataDir, "db.sqlite3");</code></li>
+      <li data-line="137-140"><span class="ln">137-140</span><code>  if (fs.existsSync(databasePath)) { console.log("Using existing database..."); return; }</code></li>
+      <li data-line="142-144"><span class="ln">142-144</span><code>  const packagedDatabasePath = app.isPackaged ? path.join(process.resourcesPath, "database", "db.sqlite3") : path.join(__dirname, "..", ".local_data", "db.sqlite3");</code></li>
+      <li data-line="146-148"><span class="ln">146-148</span><code>  if (!fs.existsSync(packagedDatabasePath)) { throw new Error("Packaged database was not found..."); }</code></li>
+      <li data-line="150"><span class="ln">150</span><code>  fs.mkdirSync(dataDir, { recursive: true });</code></li>
+      <li data-line="151"><span class="ln">151</span><code>  fs.copyFileSync(packagedDatabasePath, databasePath);</code></li>
+      <li data-line="152"><span class="ln">152</span><code>  console.log("Copied packaged database to:", databasePath);</code></li>
+      <li data-line="153"><span class="ln">153</span><code>}</code></li>
+    </ol>
+  </div>
+
+  <div class="explanation">
+    <strong>What:</strong> Makes sure the SQLite database exists in the app's data folder. First time = copies it from the bundled version. After that, uses the existing one.<br>
+    <strong>Line 142-144 (KEY LINE):</strong> <code>app.isPackaged</code> checks: "Is this the installed version or the development version?"<br>
+    &bull; If packaged (installed): database is in <code>process.resourcesPath/database/</code><br>
+    &bull; If dev: database is in <code>../.local_data/</code><br>
+    <strong>Why:</strong> During development, the database is in a different place than in the final installed app. This line handles both cases automatically.<br>
+    <strong>Simple example:</strong> Like asking "Are we at home or at a hotel?" before looking for the bathroom.
+  </div>
+
+  <!-- PART 3H: WAIT FOR DJANGO -->
+  <h3>Part H: waitForDjango() - Lines 155-187</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/main.js - Lines 155-187</span><span>Health Check</span></div>
+    <ol class="code-lines" data-file="main.js">
+      <li data-line="155"><span class="ln">155</span><code>function waitForDjango(timeoutMs = 30000) {</code></li>
+      <li data-line="156"><span class="ln">156</span><code>  return new Promise((resolve, reject) => {</code></li>
+      <li data-line="157"><span class="ln">157</span><code>    const startedAt = Date.now();</code></li>
+      <li data-line="159"><span class="ln">159</span><code>    const check = () => {</code></li>
+      <li data-line="160"><span class="ln">160</span><code>      const request = http.get("http://127.0.0.1:8000", (response) => {</code></li>
+      <li data-line="161"><span class="ln">161</span><code>        response.resume();</code></li>
+      <li data-line="162-165"><span class="ln">162-165</span><code>        if (response.statusCode >= 200 && response.statusCode < 400) { resolve(); return; }</code></li>
+      <li data-line="167-170"><span class="ln">167-170</span><code>        if (Date.now() - startedAt >= timeoutMs) { reject(new Error(...)); return; }</code></li>
+      <li data-line="172"><span class="ln">172</span><code>        setTimeout(check, 500);</code></li>
+      <li data-line="175-182"><span class="ln">175-182</span><code>      request.on("error", () => { ... retry after 500ms or reject after timeout ... });</code></li>
+      <li data-line="185"><span class="ln">185</span><code>    check();</code></li>
+      <li data-line="186"><span class="ln">186</span><code>  });</code></li>
+      <li data-line="187"><span class="ln">187</span><code>}</code></li>
+    </ol>
+  </div>
+
+  <div class="explanation">
+    <strong>What:</strong> After starting Django, this function <strong>waits and checks</strong> every 500ms if Django is ready to accept requests.<br>
+    <strong>Line 155:</strong> 30 second timeout - if Django isn't ready in 30 seconds, give up.<br>
+    <strong>Line 160:</strong> Sends a request to <code>http://127.0.0.1:8000</code> (localhost port 8000 - Django's address).<br>
+    <strong>Line 161:</strong> <code>response.resume()</code> - Tells Node "I don't need the body of this response, just the status code." Prevents memory leaks.<br>
+    <strong>Line 162-165:</strong> If Django responds with a 2xx or 3xx status code, it's alive! Resolve the promise.<br>
+    <strong>Line 175-182:</strong> If the request fails (Django hasn't started yet), wait 500ms and try again.<br>
+    <strong>Simple example:</strong> Like knocking on a door every 0.5 seconds until someone answers, but giving up after 30 seconds.
+  </div>
+
+  <!-- PART 3I: START DJANGO -->
+  <h3>Part I: startDjango() - Lines 189-282</h3>
+  <p>This is the second-biggest function. It downloads the model, sets up the database, and starts the Python backend as a child process.</p>
+
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/main.js - Lines 189-282</span><span>Backend Starter</span></div>
+    <ol class="code-lines" data-file="main.js">
+      <li data-line="189"><span class="ln">189</span><code>async function startDjango() {</code></li>
+      <li data-line="190"><span class="ln">190</span><code>  await ensureModelAvailable();</code></li>
+      <li data-line="191"><span class="ln">191</span><code>  ensureDatabaseAvailable();</code></li>
+      <li data-line="193-224"><span class="ln">193-224</span><code>  ... find the backend path (packaged / dev / fallback) ...</code></li>
+      <li data-line="226-231"><span class="ln">226-231</span><code>  if (app.isPackaged && fs.existsSync(packagedBackendPath)) { ... use packaged .exe ... }</code></li>
+      <li data-line="233-238"><span class="ln">233-238</span><code>  else if (fs.existsSync(developmentBackendPath)) { ... use dev .exe ... }</code></li>
+      <li data-line="240-248"><span class="ln">240-248</span><code>  else { ... use python fallback ... }</code></li>
+      <li data-line="254-263"><span class="ln">254-263</span><code>  djangoProcess = spawn(backendPath, backendArgs, { cwd: backendCwd, env: getBackendEnv(), windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });</code></li>
+      <li data-line="265-281"><span class="ln">265-281</span><code>  djangoProcess.stdout.on(...); djangoProcess.stderr.on(...); djangoProcess.on("error", ...); djangoProcess.on("close", ...);</code></li>
+      <li data-line="282"><span class="ln">282</span><code>}</code></li>
+    </ol>
+  </div>
+
+  <button class="btn-explain" onclick="toggleAllExplain(this)">Show All Explanations</button>
+  <div class="all-explanations" style="display:none">
+
+  <div class="explanation">
+    <strong>Lines 190-191:</strong> Before starting Django, make sure the model and database are ready. This is the order: Model first, database second, then Django.<br>
+    <strong>Why this order?</strong> Django needs both the model and database to work. It would crash without them.
+  </div>
+
+  <div class="explanation">
+    <strong>Lines 226-248: The Three-Choice Strategy</strong><br>
+    The code tries three ways to start the backend:<br>
+    1. <strong>Packaged .exe</strong> (installed app) - <code>process.resourcesPath/backend/novix-backend.exe</code><br>
+    2. <strong>Development .exe</strong> (you built it with PyInstaller) - <code>dist/novix-backend/novix-backend.exe</code><br>
+    3. <strong>Python fallback</strong> (nothing is built) - runs <code>python run_backend.py</code> directly<br>
+    <strong>Why three options?</strong> Developers don't have the .exe yet. Users have the .exe. This handles both!
+  </div>
+
+  <div class="explanation">
+    <strong>Lines 254-263: The spawn call</strong><br>
+    <code>spawn(backendPath, backendArgs, { cwd, env, windowsHide, stdio })</code><br>
+    &bull; <code>cwd</code> - Working directory for the process<br>
+    &bull; <code>env</code> - Environment variables (including NOVIX_DATA_DIR)<br>
+    &bull; <code>windowsHide: true</code> - Don't show a separate command prompt window<br>
+    &bull; <code>stdio: ["ignore", "pipe", "pipe"]</code> - Ignore input, capture stdout and stderr<br>
+    <strong>Simple example:</strong> Like hiring someone, giving them their office key (cwd), their ID badge (env), and telling them to work quietly (windowsHide).
+  </div>
+
+  <div class="explanation">
+    <strong>Lines 265-281: Monitoring the Backend</strong><br>
+    &bull; <code>stdout.on("data")</code> - Logs Django's normal messages<br>
+    &bull; <code>stderr.on("data")</code> - Logs Django's error messages<br>
+    &bull; <code>on("error")</code> - If the process fails to start at all<br>
+    &bull; <code>on("close")</code> - When Django stops, set <code>djangoProcess = null</code> (no more zombie!)<br>
+    <strong>Why:</strong> We need to know if Django crashes so we can handle it. Like a baby monitor that tells you when the baby is crying.
+  </div>
+
+  </div>
+
+  <!-- PART 3J: CREATE WINDOW -->
+  <h3>Part J: createWindow() - Lines 284-305</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/main.js - Lines 284-305</span><span>Window Creation</span></div>
+    <ol class="code-lines" data-file="main.js">
+      <li data-line="284"><span class="ln">284</span><code>function createWindow() {</code></li>
+      <li data-line="285"><span class="ln">285</span><code>  const { width, height } = screen.getPrimaryDisplay().workAreaSize;</code></li>
+      <li data-line="286"><span class="ln">286</span><code>  const windowWidth = 420;</code></li>
+      <li data-line="287"><span class="ln">287</span><code>  const windowHeight = 640;</code></li>
+      <li data-line="289-302"><span class="ln">289-302</span><code>  const window = new BrowserWindow({ width, height, x, y, frame: false, transparent: true, resizable: true, alwaysOnTop: false, webPreferences: { preload, contextIsolation: true } });</code></li>
+      <li data-line="304"><span class="ln">304</span><code>  window.loadFile(path.join(__dirname, "renderer", "chat.html"));</code></li>
+      <li data-line="305"><span class="ln">305</span><code>}</code></li>
+    </ol>
+  </div>
+
+  <button class="btn-explain" onclick="toggleAllExplain(this)">Show All Explanations</button>
+  <div class="all-explanations" style="display:none">
+
+  <div class="explanation">
+    <strong>Line 285:</strong> <code>screen.getPrimaryDisplay().workAreaSize</code><br>
+    <strong>What:</strong> Gets the size of your screen (excluding the taskbar).<br>
+    <strong>Why:</strong> We want to position the window in the bottom-right corner. We need to know the screen size to calculate that.
+  </div>
+
+  <div class="explanation">
+    <strong>Lines 291-292:</strong> <code>x: Math.max(20, width - windowWidth - 20), y: Math.max(20, height - windowHeight - 20)</code><br>
+    <strong>What:</strong> Positions the window in the <strong>bottom-right corner</strong> with 20px margin.<br>
+    <strong>Why:</strong> Like a chat widget that sits in the corner of your screen. The <code>Math.max(20, ...)</code> ensures it never goes off-screen.<br>
+    <strong>Simple example:</strong> Like putting a sticky note in the bottom-right corner of a whiteboard, making sure it doesn't hang off the edge.
+  </div>
+
+  <div class="explanation">
+    <strong>Line 294:</strong> <code>frame: false</code><br>
+    <strong>What:</strong> Removes the default window title bar (the thing with minimize, maximize, close buttons).<br>
+    <strong>Why:</strong> The app has its own custom close button and design. The default title bar would look ugly and doesn't match the dark theme.<br>
+    <strong>Note:</strong> This is why the app needs its own IPC close button - there's no default close button!
+  </div>
+
+  <div class="explanation">
+    <strong>Line 295:</strong> <code>transparent: true</code><br>
+    <strong>What:</strong> Makes the window background transparent.<br>
+    <strong>Why:</strong> The app uses rounded corners and glass effects. A transparent background lets the rounded corners show through instead of having a square window behind them.
+  </div>
+
+  <div class="explanation">
+    <strong>Lines 298-301 (THE MOST IMPORTANT WINDOW SETTINGS):</strong><br>
+    <code>webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true }</code><br><br>
+    <strong>What:</strong><br>
+    &bull; <code>preload</code> - Specifies the preload script that runs before the page loads.<br>
+    &bull; <code>contextIsolation: true</code> - Puts a wall between the preload script and the web page. This is a <strong>security feature</strong>.<br>
+    <strong>Why:</strong> Without context isolation, any script on the web page could access Node.js (and therefore your entire computer!). With it ON, only the preload script can bridge the gap, and only exposes what we explicitly allow.<br>
+    <strong>Simple example:</strong> Like a bank teller window with glass. You (the web page) can talk to the teller (preload), but you can't reach through and grab the money (Node.js APIs).
+  </div>
+
+  <div class="explanation">
+    <strong>Line 304:</strong> <code>window.loadFile(path.join(__dirname, "renderer", "chat.html"));</code><br>
+    <strong>What:</strong> Loads the chat.html file into the window.<br>
+    <strong>Why:</strong> This is the actual UI the user sees. It's like telling the browser "go to this page."<br>
+    <strong>How it connects:</strong> After this line, the renderer process starts. The preload script runs first, then chat.html loads with its chat.js.
+  </div>
+
+  </div>
+
+  <!-- PART 3K: APP READY -->
+  <h3>Part K: app.whenReady() - Lines 307-322 (The Heart of the App)</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/main.js - Lines 307-322</span><span>Startup Sequence</span></div>
+    <ol class="code-lines" data-file="main.js">
+      <li data-line="307"><span class="ln">307</span><code>app.whenReady().then(async () => {</code></li>
+      <li data-line="308"><span class="ln">308</span><code>  try {</code></li>
+      <li data-line="309"><span class="ln">309</span><code>    await startDjango();</code></li>
+      <li data-line="310"><span class="ln">310</span><code>    await waitForDjango();</code></li>
+      <li data-line="311"><span class="ln">311</span><code>  } catch (error) {</code></li>
+      <li data-line="312-318"><span class="ln">312-318</span><code>    console.error("Backend startup failed:", error); if (djangoProcess) { djangoProcess.kill(); } createErrorWindow(error); return;</code></li>
+      <li data-line="320"><span class="ln">320</span><code>  }</code></li>
+      <li data-line="321"><span class="ln">321</span><code>  createWindow();</code></li>
+      <li data-line="322"><span class="ln">322</span><code>});</code></li>
+    </ol>
+  </div>
+
+  <div class="concept-box green">
+    <div class="label">THIS IS THE MOST IMPORTANT BLOCK IN THE ENTIRE APP</div>
+    <p>This is where it all starts. Let's trace the complete startup:</p>
+    <ol>
+      <li><code>app.whenReady()</code> - "Hey Electron, are you done setting up?" Electron says "Yes!" when the browser engine is ready.</li>
+      <li><code>await startDjango()</code> - Download model if needed, copy database, start Django backend.</li>
+      <li><code>await waitForDjango()</code> - Wait until Django responds on port 8000.</li>
+      <li><code>createWindow()</code> - NOW create the window and show the chat UI.</li>
+    </ol>
+    <p><strong>Why this order?</strong> If we created the window FIRST, the user would see a broken page because Django isn't ready. By starting Django first and THEN creating the window, the chat works immediately!</p>
+    <p><strong>If anything fails:</strong> The catch block kills Django, shows an error window, and returns (never creates the main window).</p>
+  </div>
+
+  <!-- PART 3L: IPC -->
+  <h3>Part L: IPC Handler - Lines 324-329</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/main.js - Lines 324-329</span><span>IPC</span></div>
+    <ol class="code-lines" data-file="main.js">
+      <li data-line="324"><span class="ln">324</span><code>ipcMain.on("close-window", (event) => {</code></li>
+      <li data-line="325"><span class="ln">325</span><code>  const win = BrowserWindow.fromWebContents(event.sender);</code></li>
+      <li data-line="326-328"><span class="ln">326-328</span><code>  if (win) { win.close(); }</code></li>
+      <li data-line="329"><span class="ln">329</span><code>});</code></li>
+    </ol>
+  </div>
+
+  <div class="explanation">
+    <strong>What:</strong> Listens for the "close-window" message from the renderer.<br>
+    <strong>Line 325:</strong> <code>BrowserWindow.fromWebContents(event.sender)</code> - Figures out WHICH window sent this message. If you had multiple windows, this knows which one to close.<br>
+    <strong>Line 326-328:</strong> If the window exists, close it!<br>
+    <strong>Why:</strong> The app has <code>frame: false</code> (no default close button), so the custom close button in the chat needs to tell the main process "Please close this window."<br>
+    <strong>How it connects:</strong> The renderer calls <code>window.electronAPI.closeWindow()</code> &rarr; preload sends <code>"close-window"</code> IPC message &rarr; this handler receives it and closes the window. See the IPC section for the full picture!
+  </div>
+
+  <!-- PART 3M: LIFECYCLE -->
+  <h3>Part M: App Lifecycle - Lines 331-347</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/main.js - Lines 331-347</span><span>Cleanup</span></div>
+    <ol class="code-lines" data-file="main.js">
+      <li data-line="331"><span class="ln">331</span><code>app.on("window-all-closed", () => {</code></li>
+      <li data-line="332-335"><span class="ln">332-335</span><code>  if (djangoProcess) { djangoProcess.kill(); djangoProcess = null; }</code></li>
+      <li data-line="337-339"><span class="ln">337-339</span><code>  if (process.platform !== "darwin") { app.quit(); }</code></li>
+      <li data-line="340"><span class="ln">340</span><code>});</code></li>
+      <li data-line="342"><span class="ln">342</span><code>app.on("before-quit", () => {</code></li>
+      <li data-line="343-346"><span class="ln">343-346</span><code>  if (djangoProcess) { djangoProcess.kill(); djangoProcess = null; }</code></li>
+      <li data-line="347"><span class="ln">347</span><code>});</code></li>
+    </ol>
+  </div>
+
+  <div class="explanation">
+    <strong>Line 331:</strong> <code>window-all-closed</code> - Fires when the LAST window closes.<br>
+    <strong>Line 332-335:</strong> Kill Django! We don't want a zombie process eating your CPU.<br>
+    <strong>Line 337-339:</strong> <code>process.platform !== "darwin"</code> - On Mac ("darwin"), apps stay alive when windows close (Mac convention). On Windows/Linux, quit completely.<br>
+    <strong>Line 342:</strong> <code>before-quit</code> - A safety net! If the user quits from the taskbar (right-click > Quit), this also kills Django.<br>
+    <strong>Why both handlers?</strong> Different ways to close the app need different handlers. Closing the window triggers <code>window-all-closed</code>. Quitting from taskbar triggers <code>before-quit</code>. Both need to clean up Django.
+  </div>
+</div>
+
+<!-- ============ SECTION 4: PRELOAD.JS ============ -->
+<div class="section" id="sec-preload">
+  <h2>4. preload.js - The Safe Messenger</h2>
+  <p>This tiny file is <strong>critically important</strong> for security. It runs BEFORE the web page loads and creates a safe bridge between the web page and Electron.</p>
+
+  <div class="concept-box orange">
+    <div class="label">Think of it like this</div>
+    <p>The preload script is like a <strong>security guard at a bank</strong>. The web page (customer) wants to access the vault (Node.js APIs). The guard (preload) says: "You can't go in, but I'll bring you exactly what you need." Only specific, safe functions are exposed.</p>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/preload.js - All 9 lines</span><span>Complete File</span></div>
+    <ol class="code-lines" data-file="preload.js">
+      <li data-line="1"><span class="ln">1</span><code>window.addEventListener('DOMContentLoaded', () => { });</code></li>
+      <li data-line="2"><span class="ln">2</span><code></code></li>
+      <li data-line="3"><span class="ln">3</span><code>// clse btn related </code></li>
+      <li data-line="4"><span class="ln">4</span><code><span class="tag electron">Electron</span>const { contextBridge, ipcRenderer } = require("electron");</code></li>
+      <li data-line="5"><span class="ln">5</span><code></code></li>
+      <li data-line="6"><span class="ln">6</span><code><span class="tag electron">Electron</span>contextBridge.exposeInMainWorld("electronAPI", {</code></li>
+      <li data-line="7"><span class="ln">7</span><code>    closeWindow: () => ipcRenderer.send("close-window")</code></li>
+      <li data-line="8"><span class="ln">8</span><code>});</code></li>
+    </ol>
+  </div>
+
+  <button class="btn-explain" onclick="toggleAllExplain(this)">Show All Explanations</button>
+  <div class="all-explanations" style="display:none">
+
+  <div class="explanation">
+    <strong>Line 1:</strong> <code>window.addEventListener('DOMContentLoaded', () => { });</code><br>
+    <strong>What:</strong> Listens for the web page to finish loading its HTML. Currently does nothing (empty function).<br>
+    <strong>Why it's here:</strong> This is a placeholder for future use. If you ever need to run code right when the page loads, this is where you'd put it.<br>
+    <strong>Not Electron-specific - but the pattern is Electron-specific</strong> - using <code>window.addEventListener</code> in a preload script is an Electron convention.
+  </div>
+
+  <div class="explanation">
+    <strong>Line 4:</strong> <code>const { contextBridge, ipcRenderer } = require("electron");</code><br>
+    <strong>What:</strong> Grabs two Electron tools:<br>
+    &bull; <code>contextBridge</code> - The tool that creates the safe bridge between worlds.<br>
+    &bull; <code>ipcRenderer</code> - The tool that sends messages to the Main Process.<br>
+    <strong>Why:</strong> We need both to create our safe API. <code>contextBridge</code> makes the bridge, <code>ipcRenderer</code> carries the messages.
+  </div>
+
+  <div class="explanation">
+    <strong>Lines 6-8 (THE MOST IMPORTANT LINES IN PRELOAD):</strong><br>
+    <code>contextBridge.exposeInMainWorld("electronAPI", { closeWindow: () => ipcRenderer.send("close-window") });</code><br><br>
+    <strong>What:</strong> Creates <code>window.electronAPI</code> in the web page with a single method: <code>closeWindow()</code>.<br>
+    <strong>How it works:</strong><br>
+    &bull; <code>contextBridge.exposeInMainWorld</code> - "I want to put something on the global <code>window</code> object of the web page."<br>
+    &bull; <code>"electronAPI"</code> - The name of the object. The web page will use <code>window.electronAPI</code>.<br>
+    &bull; <code>{ closeWindow: () => ipcRenderer.send("close-window") }</code> - The <code>closeWindow</code> method sends a message called <code>"close-window"</code> to the Main Process.<br>
+    <strong>Why:</strong> Without this bridge, the web page can't talk to Electron AT ALL. This is the ONLY way the chat window can close itself.<br>
+    <strong>Security note:</strong> We only expose <code>closeWindow</code>. The web page can't access <code>fs</code>, <code>spawn</code>, or any other dangerous Node.js API. It can ONLY close the window. This is the principle of <strong>least privilege</strong>.
+  </div>
+
+  </div>
+
+  <div class="concept-box pink">
+    <div class="label">The Security Flow</div>
+    <p>chat.js (web page) can't use <code>require("electron")</code>. It can only use <code>window.electronAPI.closeWindow()</code>. The preload script is the ONLY bridge. This prevents malicious web content from taking over your computer.</p>
+  </div>
+</div>
+
+<!-- ============ SECTION 5: RENDERER ============ -->
+<div class="section" id="sec-renderer">
+  <h2>5. Renderer - The Close Button Connection</h2>
+  <p>The renderer files (chat.js, chat.html) are mostly about the chat UI and backend communication. But there are important Electron-specific parts. Let's focus only on those.</p>
+
+  <div class="concept-box">
+    <div class="label">Renderer File - Electron-Specific Parts Only</div>
+    <p>In <code>chat.js</code>, only ONE part is Electron-specific: the close button handler at the very end.</p>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/renderer/chat.js - Lines 473-478</span><span>Electron Connection</span></div>
+    <ol class="code-lines" data-file="chat.js">
+      <li data-line="473"><span class="ln">473</span><code>// close btn</code></li>
+      <li data-line="474"><span class="ln">474</span><code>document.getElementById("closeBtn").addEventListener("click", () => {</code></li>
+      <li data-line="475"><span class="ln">475</span><code>    window.electronAPI.closeWindow();</code></li>
+      <li data-line="476"><span class="ln">476</span><code>});</code></li>
+      <li data-line="478"><span class="ln">478</span><code>initConversations();</code></li>
+    </ol>
+  </div>
+
+  <div class="explanation">
+    <strong>Line 474:</strong> Finds the close button (the X in the top-right corner of the chat).<br>
+    <strong>Line 475:</strong> <code>window.electronAPI.closeWindow()</code> - This is the magic line! It calls the function exposed by the preload script.<br>
+    <strong>The full chain:</strong><br>
+    1. User clicks X &rarr; 2. <code>chat.js</code> calls <code>window.electronAPI.closeWindow()</code> &rarr; 3. <code>preload.js</code> sends IPC message <code>"close-window"</code> &rarr; 4. <code>main.js</code> receives it and calls <code>win.close()</code> &rarr; 5. Window closes, triggers <code>window-all-closed</code> &rarr; 6. Django is killed, app quits.<br>
+    <strong>Simple example:</strong> Like pressing an elevator button. You (renderer) press the button. The wire (preload/IPC) carries the signal. The elevator motor (main process) opens/closes the door.
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="filename">desktop/renderer/chat.html - Lines 50-59</span><span>Close Button HTML</span></div>
+    <ol class="code-lines" data-file="chat.html">
+      <li data-line="50"><span class="ln">50</span><code>&lt;button id="closeBtn" class="close-btn" title="Close"&gt;</code></li>
+      <li data-line="51-58"><span class="ln">51-58</span><code>    &lt;svg ...&gt;...X shape...&lt;/svg&gt;</code></li>
+      <li data-line="59"><span class="ln">59</span><code>&lt;/button&gt;</code></li>
+    </ol>
+  </div>
+
+  <div class="explanation">
+    <strong>What:</strong> The actual close button in the HTML. It's an SVG icon (an X shape) inside a button with id <code>"closeBtn"</code>.<br>
+    <strong>Why custom?</strong> Because we used <code>frame: false</code> in BrowserWindow, there's no default close button. We had to make our own!
+  </div>
+</div>
+
+<!-- ============ SECTION 6: COMPLETE FLOW ============ -->
+<div class="section" id="sec-flow">
+  <h2>6. Complete Electron Flow (Start to Finish)</h2>
+  <p>Here is the ENTIRE life of this Electron app, from double-click to close:</p>
+
+  <div class="flow-diagram">
+    <div style="text-align:center">
+      <div class="flow-step" style="border-color:var(--yellow)"><span class="step-label" style="color:var(--yellow)">1. User double-clicks app</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step"><span class="step-label">2. Electron starts main.js</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step"><span class="step-label">3. app.setName('Novix')</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step" style="border-color:var(--orange)"><span class="step-label" style="color:var(--orange)">4. app.whenReady() fires</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step" style="border-color:var(--green)"><span class="step-label" style="color:var(--green)">5. ensureModelAvailable()</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step" style="border-color:var(--green)"><span class="step-label" style="color:var(--green)">6. ensureDatabaseAvailable()</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step" style="border-color:var(--pink)"><span class="step-label" style="color:var(--pink)">7. spawn(Django backend)</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step" style="border-color:var(--pink)"><span class="step-label" style="color:var(--pink)">8. waitForDjango() (polls 127.0.0.1:8000)</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step" style="border-color:var(--accent)"><span class="step-label" style="color:var(--accent)">9. createWindow() (BrowserWindow)</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step"><span class="step-label">10. preload.js runs</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step"><span class="step-label">11. chat.html loads (renderer)</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step"><span class="step-label">12. chat.js runs, calls initConversations()</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step" style="border-color:var(--yellow)"><span class="step-label" style="color:var(--yellow)">13. User chats! (HTTP to Django)</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step" style="border-color:var(--red)"><span class="step-label" style="color:var(--red)">14. User clicks X (close window)</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step"><span class="step-label">15. window.electronAPI.closeWindow()</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step"><span class="step-label">16. IPC: "close-window" to main</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step"><span class="step-label">17. win.close() called</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step"><span class="step-label">18. window-all-closed fires</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step" style="border-color:var(--pink)"><span class="step-label" style="color:var(--pink)">19. djangoProcess.kill()</span></div>
+      <div class="flow-arrow-down">&darr;</div>
+      <div class="flow-step" style="border-color:var(--red)"><span class="step-label" style="color:var(--red)">20. app.quit() - Goodbye!</span></div>
+    </div>
+  </div>
+
+  <h3>Three Processes in Action</h3>
+  <div class="arch-grid">
+    <div class="arch-box main">
+      <h4>Main Process (main.js)</h4>
+      <p>Starts app, downloads model, copies DB, spawns Django, creates window, listens for IPC, kills Django on close.</p>
+    </div>
+    <div class="arch-box preload">
+      <h4>Preload (preload.js)</h4>
+      <p>Runs once before page load. Exposes <code>window.electronAPI.closeWindow()</code>. Does nothing else.</p>
+    </div>
+    <div class="arch-box renderer">
+      <h4>Renderer (chat.js)</h4>
+      <p>Shows chat UI, talks to Django via HTTP, uses <code>window.electronAPI</code> only for the close button.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SECTION 7: IPC ============ -->
+<div class="section" id="sec-ipc">
+  <h2>7. IPC Communication (How Parts Talk)</h2>
+
+  <div class="concept-box green">
+    <div class="label">What is IPC?</div>
+    <p><strong>IPC = Inter-Process Communication.</strong> It's how the Main Process and Renderer Process send messages to each other.</p>
+    <p><strong>Why:</strong> The Main Process and Renderer are <em>separate programs</em> running in separate memory. They can't just reach into each other's variables. IPC is like sending letters between two people in different buildings.</p>
+  </div>
+
+  <h3>IPC in This Project</h3>
+  <p>This project uses ONLY ONE IPC channel: <code>"close-window"</code>. That's it!</p>
+
+  <div class="code-block">
+    <div class="code-header"><span class="filename">Complete IPC Flow</span><span>Visual</span></div>
+    <ol class="code-lines">
+      <li><span class="ln" style="width:auto">RENDERER</span><code>window.electronAPI.closeWindow()</code></li>
+      <li><span class="ln" style="width:auto">&darr;</span><code></code></li>
+      <li><span class="ln" style="width:auto">PRELOAD</span><code>ipcRenderer.send("close-window")</code></li>
+      <li><span class="ln" style="width:auto">&darr;</span><code></code></li>
+      <li><span class="ln" style="width:auto">MAIN</span><code>ipcMain.on("close-window", (event) => { win.close() })</code></li>
+    </ol>
+  </div>
+
+  <div class="concept-box orange">
+    <div class="label">Important: Why not use IPC for everything?</div>
+    <p>In this project, the renderer talks to the Django backend via <strong>HTTP requests</strong> (fetch calls), NOT via IPC. IPC is only used for the close button because that's the only thing that needs Electron's permission.</p>
+    <p><strong>IPC</strong> = talk to Electron itself (close window, open file dialogs, etc.)</p>
+    <p><strong>HTTP</strong> = talk to the backend server (send messages, get conversations, etc.)</p>
+  </div>
+
+  <h3>IPC Channels Used</h3>
+  <table class="cheat-table">
+    <tr><th>Channel Name</th><th>Direction</th><th>Sender</th><th>Receiver</th><th>What It Does</th></tr>
+    <tr><td><code>"close-window"</code></td><td>Renderer &rarr; Main</td><td>chat.js (via preload)</td><td>main.js</td><td>Closes the BrowserWindow</td></tr>
+  </table>
+</div>
+
+<!-- ============ SECTION 8: ARCHITECTURE ============ -->
+<div class="section" id="sec-architecture">
+  <h2>8. Architecture Diagram</h2>
+
+  <div class="flow-diagram" style="text-align:center">
+    <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:16px;align-items:flex-start">
+      <div>
+        <div class="flow-step" style="border-color:var(--accent);display:block;text-align:center">
+          <div class="step-label" style="color:var(--accent);font-size:14px">MAIN PROCESS</div>
+          <div style="font-size:11px;margin-top:6px">
+            main.js<br>
+            app, BrowserWindow<br>
+            ipcMain, spawn<br>
+            fs, path, http
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;justify-content:center;gap:8px;padding:20px 0">
+        <div style="font-size:12px;color:var(--accent2)">&darr; preload script &darr;</div>
+        <div style="font-size:12px;color:var(--orange)">&uarr; IPC messages &uarr;</div>
+      </div>
+      <div>
+        <div class="flow-step" style="border-color:var(--orange);display:block;text-align:center">
+          <div class="step-label" style="color:var(--orange);font-size:14px">PRELOAD</div>
+          <div style="font-size:11px;margin-top:6px">
+            preload.js<br>
+            contextBridge<br>
+            ipcRenderer
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;justify-content:center;gap:8px;padding:20px 0">
+        <div style="font-size:12px;color:var(--green)">&darr; loads HTML &darr;</div>
+      </div>
+      <div>
+        <div class="flow-step" style="border-color:var(--green);display:block;text-align:center">
+          <div class="step-label" style="color:var(--green);font-size:14px">RENDERER</div>
+          <div style="font-size:11px;margin-top:6px">
+            chat.html + chat.js<br>
+            window.electronAPI<br>
+            DOM, fetch()
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:20px">
+      <div style="font-size:12px;color:var(--pink);margin-bottom:8px">&darr; HTTP requests (fetch) &darr;</div>
+      <div class="flow-step" style="border-color:var(--pink);display:inline-block;text-align:center">
+        <div class="step-label" style="color:var(--pink);font-size:14px">DJANGO BACKEND</div>
+        <div style="font-size:11px;margin-top:6px">
+          127.0.0.1:8000<br>
+          Separate process (spawned)<br>
+          Manages AI model, database
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>File Dependencies</h3>
+  <table class="cheat-table">
+    <tr><th>File</th><th>Depends On</th><th>Used By</th></tr>
+    <tr><td>package.json</td><td>Nothing</td><td>npm, electron-builder</td></tr>
+    <tr><td>main.js</td><td>package.json (entry point)</td><td>Electron (loads it)</td></tr>
+    <tr><td>preload.js</td><td>main.js (referenced in webPreferences)</td><td>chat.js (uses window.electronAPI)</td></tr>
+    <tr><td>chat.html</td><td>chat.js, style.css</td><td>main.js (loadFile)</td></tr>
+    <tr><td>chat.js</td><td>chat.html (DOM elements), preload.js (electronAPI)</td><td>chat.html (script tag)</td></tr>
+  </table>
+</div>
+
+<!-- ============ SECTION 9: WHAT IF ============ -->
+<div class="section" id="sec-whatif">
+  <h2>9. "What Happens When I Run This?"</h2>
+
+  <div class="concept-box green">
+    <div class="label">Scenario 1: First Time Running</div>
+    <ol>
+      <li>Double-click the app &rarr; Electron reads <code>package.json</code>, sees <code>"main": "main.js"</code></li>
+      <li><code>main.js</code> starts running. Sets name to "Novix".</li>
+      <li><code>app.whenReady()</code> fires.</li>
+      <li><code>ensureModelAvailable()</code> - Model doesn't exist yet. Downloads ~600MB file from HuggingFace (may take minutes).</li>
+      <li><code>ensureDatabaseAvailable()</code> - Database doesn't exist yet. Copies it from the bundled version.</li>
+      <li><code>startDjango()</code> - Starts the Python backend as a child process.</li>
+      <li><code>waitForDjango()</code> - Polls 127.0.0.1:8000 every 500ms until it responds.</li>
+      <li><code>createWindow()</code> - Shows the 420x640 chat window in the bottom-right corner.</li>
+      <li>User starts chatting!</li>
+    </ol>
+  </div>
+
+  <div class="concept-box">
+    <div class="label">Scenario 2: Second Time Running</div>
+    <ol>
+      <li>Everything is the same, EXCEPT: the model already exists (download is skipped), the database already exists (copy is skipped).</li>
+      <li>So startup is much faster - just start Django, wait for it, create window.</li>
+    </ol>
+  </div>
+
+  <div class="concept-box pink">
+    <div class="label">Scenario 3: Something Goes Wrong</div>
+    <ol>
+      <li>If the model download fails after 3 retries: error is thrown.</li>
+      <li>The <code>catch</code> block in <code>app.whenReady()</code> catches it.</li>
+      <li>Django process (if started) is killed.</li>
+      <li>An error window is shown explaining what went wrong.</li>
+      <li>The main chat window is NEVER created.</li>
+    </ol>
+  </div>
+</div>
+
+<!-- ============ SECTION 10: ABSENT ============ -->
+<div class="section" id="sec-absent">
+  <h2>10. Important Electron Concepts NOT in This Project</h2>
+  <p>Electron has many features. This project doesn't use all of them. Here are the important ones that are <strong>absent</strong>:</p>
+
+  <table class="cheat-table">
+    <tr><th>Concept</th><th>What It Does</th><th>Why This Project Doesn't Use It</th></tr>
+    <tr><td><code>ipcRenderer</code> (in renderer)</td><td>Directly send/receive IPC messages from the renderer.</td><td>The renderer uses HTTP to talk to Django, not IPC. Only the close button needs IPC, and that goes through the preload.</td></tr>
+    <tr><td><code>dialog</code></td><td>Native OS dialogs (open file, save file, confirm, etc.).</td><td>The app uses custom HTML modals for rename/delete instead.</td></tr>
+    <tr><td><code>Menu</code> / <code>Tray</code></td><td>System tray icon, right-click menus.</td><td>Not needed for a chat app.</td></tr>
+    <tr><td><code>autoUpdater</code></td><td>Automatically download and install updates.</td><td>Not implemented yet.</td></tr>
+    <tr><td><code>shell</code></td><td>Open URLs in the default browser, open files, etc.</td><td>Not needed.</td></tr>
+    <tr><td><code>nativeImage</code></td><td>Work with images (icons, screenshots).</td><td>Not needed.</td></tr>
+    <tr><td><code>session</code></td><td>Control cookies, cache, storage.</td><td>Not needed.</td></tr>
+    <tr><td><code>protocol</code></td><td>Register custom protocols (e.g., <code>myapp://</code>).</td><td>Not needed.</td></tr>
+    <tr><td><code>webContents</code></td><td>Control the content of a window (navigation, screenshots, etc.).</td><td>Only used minimally via <code>BrowserWindow.fromWebContents()</code>.</td></tr>
+    <tr><td><code>BrowserWindow</code> options like <code>webSecurity: false</code></td><td>Disable web security (dangerous!).</td><td>Good! This project keeps security ON.</td></tr>
+    <tr><td>Multiple windows</td><td>Open more than one BrowserWindow.</td><td>Only one chat window needed.</td></tr>
+    <tr><td><code>nodeIntegration: true</code></td><td>Let the renderer use Node.js directly (dangerous!).</td><td>Good! This project uses <code>contextIsolation: true</code> instead.</td></tr>
+  </table>
+</div>
+
+<!-- ============ SECTION 11: SUMMARY ============ -->
+<div class="section" id="sec-summary">
+  <h2>11. Electron in 5 Minutes</h2>
+
+  <div class="concept-box green">
+    <div class="label">The Big Picture in Simple Words</div>
+    <p>Electron is like a <strong>magic box</strong> that turns a website into a desktop app.</p>
+    <p>This project (Novix) is an AI chat assistant. Here's what Electron does for it:</p>
+    <ol>
+      <li><strong>Starts the app</strong> - When you double-click, Electron's <code>app</code> object takes over.</li>
+      <li><strong>Downloads the AI brain</strong> - The main process downloads a 600MB AI model file from the internet (only the first time).</li>
+      <li><strong>Copies the database</strong> - Sets up a SQLite database for storing chat history.</li>
+      <li><strong>Starts the backend</strong> - Spawns a Python program as a background process. This Python program handles AI conversations.</li>
+      <li><strong>Waits for the backend</strong> - Polls the backend every 0.5 seconds until it's ready.</li>
+      <li><strong>Creates the chat window</strong> - Opens a 420x640 pixel frameless window in the bottom-right corner with the chat HTML.</li>
+      <li><strong>Lets the user chat</strong> - The HTML/JS in the window sends messages to the Python backend via HTTP, gets AI replies back.</li>
+      <li><strong>Closes cleanly</strong> - When the user clicks X, Electron tells the main process to close the window and kill the Python process.</li>
+    </ol>
+  </div>
+
+  <div class="concept-box">
+    <div class="label">The 4 Files You Need to Remember</div>
+    <ol>
+      <li><strong>package.json</strong> - "Here's my name, here's the starting file, here's how to build me."</li>
+      <li><strong>main.js</strong> - "I'm the boss. I download stuff, start the backend, create windows, listen for messages, and clean up when we're done."</li>
+      <li><strong>preload.js</strong> - "I'm the security guard. I only let the chat window close itself. Nothing else."</li>
+      <li><strong>chat.js</strong> - "I'm the chat UI. I talk to the Python backend via HTTP. For closing, I use the preload's <code>electronAPI</code>."</li>
+    </ol>
+  </div>
+</div>
+
+<!-- ============ SECTION 12: QUIZ ============ -->
+<div class="section" id="sec-quiz">
+  <h2>12. Can I Explain This Project Myself?</h2>
+  <p>Click each question to reveal the answer. If you can answer these, you understand the Electron code!</p>
+
+  <div class="quiz-q" onclick="this.classList.toggle('open')">
+    <div class="q-text">1. What file does Electron run first when the app starts?</div>
+    <div class="quiz-a"><strong>main.js</strong> - because <code>package.json</code> says <code>"main": "main.js"</code>. This is the entry point.</div>
+  </div>
+
+  <div class="quiz-q" onclick="this.classList.toggle('open')">
+    <div class="q-text">2. What is the Main Process and what can it do?</div>
+    <div class="quiz-a">The Main Process runs <code>main.js</code>. It has <strong>full access to the computer</strong> - it can read/write files, start other programs, access the network. It creates windows and manages the app lifecycle. Think of it as the "manager" behind the scenes.</div>
+  </div>
+
+  <div class="quiz-q" onclick="this.classList.toggle('open')">
+    <div class="q-text">3. What is the Renderer Process?</div>
+    <div class="quiz-a">The Renderer Process runs the <strong>web page inside the BrowserWindow</strong> - in this case, chat.html + chat.js. It's like a regular web browser tab. It <strong>cannot</strong> access your computer's files or run Node.js commands (because contextIsolation is ON).</div>
+  </div>
+
+  <div class="quiz-q" onclick="this.classList.toggle('open')">
+    <div class="q-text">4. What does preload.js do?</div>
+    <div class="quiz-a">preload.js runs <strong>before</strong> the web page loads. It uses <code>contextBridge.exposeInMainWorld()</code> to safely expose <code>window.electronAPI.closeWindow()</code> to the renderer. It's the <strong>only bridge</strong> between the web page and Electron.</div>
+  </div>
+
+  <div class="quiz-q" onclick="this.classList.toggle('open')">
+    <div class="q-text">5. How does the user close the app?</div>
+    <div class="quiz-a">User clicks the X button (HTML) &rarr; chat.js calls <code>window.electronAPI.closeWindow()</code> &rarr; preload sends IPC <code>"close-window"</code> &rarr; main.js receives it and calls <code>win.close()</code> &rarr; Django is killed and app quits.</div>
+  </div>
+
+  <div class="quiz-q" onclick="this.classList.toggle('open')">
+    <div class="q-text">6. Why does the app use <code>frame: false</code>?</div>
+    <div class="quiz-a">To remove the default Windows title bar (minimize/maximize/close buttons). The app has its own custom design with a custom close button and dark theme. This makes it look like a modern chat widget, not a generic window.</div>
+  </div>
+
+  <div class="quiz-q" onclick="this.classList.toggle('open')">
+    <div class="q-text">7. What is IPC and how is it used here?</div>
+    <div class="quiz-a">IPC (Inter-Process Communication) lets the Main Process and Renderer send messages. Here, there's only ONE channel: <code>"close-window"</code>. The renderer sends it via preload's <code>ipcRenderer.send()</code>, and the main process listens with <code>ipcMain.on()</code>.</div>
+  </div>
+
+  <div class="quiz-q" onclick="this.classList.toggle('open')">
+    <div class="q-text">8. Why does the app kill <code>djangoProcess</code> in TWO places?</div>
+    <div class="quiz-a">In <code>window-all-closed</code> AND <code>before-quit</code>. Different closing scenarios trigger different events: clicking the X triggers window-all-closed. Right-clicking the taskbar and choosing Quit triggers before-quit. Both need to clean up Django so it doesn't keep running as a zombie.</div>
+  </div>
+
+  <div class="quiz-q" onclick="this.classList.toggle('open')">
+    <div class="q-text">9. What is <code>contextIsolation: true</code> and why is it important?</div>
+    <div class="quiz-a">It puts a wall between the web page and Node.js. Without it, any script on the page could access your files, run commands, etc. With it ON, only the preload script can bridge the gap. This project is SECURE because it uses contextIsolation.</div>
+  </div>
+
+  <div class="quiz-q" onclick="this.classList.toggle('open')">
+    <div class="q-text">10. What does <code>app.getPath('userData')</code> return?</div>
+    <div class="quiz-a">A special folder path where the app is allowed to store data. On Windows it's something like <code>C:\Users\you\AppData\Local\novix</code>. The main process uses it to save the AI model and database. It's the "safe zone" for app data.</div>
+  </div>
+</div>
+
+<!-- ============ SECTION 13: CHEAT SHEET ============ -->
+<div class="section" id="sec-cheat">
+  <h2>13. Important Electron Code Cheat Sheet</h2>
+  <p>All Electron APIs used in this project and what each one does:</p>
+
+  <table class="cheat-table">
+    <tr><th>API</th><th>File(s)</th><th>What It Does</th><th>Example From This Project</th></tr>
+    <tr>
+      <td><code>app</code></td>
+      <td>main.js</td>
+      <td>Controls the entire application lifecycle. Fires events like <code>whenReady</code>, <code>window-all-closed</code>, <code>before-quit</code>.</td>
+      <td><code>app.whenReady().then(...)</code><br><code>app.on("window-all-closed", ...)</code><br><code>app.getPath('userData')</code><br><code>app.setName('Novix')</code><br><code>app.quit()</code></td>
+    </tr>
+    <tr>
+      <td><code>BrowserWindow</code></td>
+      <td>main.js</td>
+      <td>Creates a window (like a browser tab) that displays web content.</td>
+      <td><code>new BrowserWindow({ frame: false, transparent: true, webPreferences: { preload, contextIsolation: true } })</code></td>
+    </tr>
+    <tr>
+      <td><code>screen</code></td>
+      <td>main.js</td>
+      <td>Gets information about the user's display (monitor size).</td>
+      <td><code>screen.getPrimaryDisplay().workAreaSize</code> - used to position the window.</td>
+    </tr>
+    <tr>
+      <td><code>ipcMain</code></td>
+      <td>main.js</td>
+      <td>Listens for IPC messages from the renderer (via preload). The "Main" half of the conversation.</td>
+      <td><code>ipcMain.on("close-window", (event) => { ... })</code></td>
+    </tr>
+    <tr>
+      <td><code>ipcRenderer</code></td>
+      <td>preload.js</td>
+      <td>Sends IPC messages to the Main Process. The "Renderer" half of the conversation.</td>
+      <td><code>ipcRenderer.send("close-window")</code></td>
+    </tr>
+    <tr>
+      <td><code>contextBridge</code></td>
+      <td>preload.js</td>
+      <td>Safely exposes functions from the preload script to the web page. The security gatekeeper.</td>
+      <td><code>contextBridge.exposeInMainWorld("electronAPI", { closeWindow: ... })</code></td>
+    </tr>
+    <tr>
+      <td><code>webPreferences</code></td>
+      <td>main.js</td>
+      <td>Configuration for the BrowserWindow's web content. Controls security settings.</td>
+      <td><code>{ preload: "...preload.js", contextIsolation: true }</code></td>
+    </tr>
+    <tr>
+      <td><code>app.isPackaged</code></td>
+      <td>main.js</td>
+      <td>Boolean. <code>true</code> if running as a built/packaged app. <code>false</code> if running in development.</td>
+      <td>Used to find the right path for database and backend .exe.</td>
+    </tr>
+    <tr>
+      <td><code>process.resourcesPath</code></td>
+      <td>main.js</td>
+      <td>Path to the <code>resources</code> folder in a packaged Electron app. Where extra files are stored.</td>
+      <td>Used to find the bundled backend .exe and database.</td>
+    </tr>
+    <tr>
+      <td><code>app.on()</code></td>
+      <td>main.js</td>
+      <td>Listens for app lifecycle events.</td>
+      <td><code>"window-all-closed"</code>, <code>"before-quit"</code></td>
+    </tr>
+    <tr>
+      <td><code>window.electronAPI</code></td>
+      <td>chat.js (renderer)</td>
+      <td>The object exposed by preload via contextBridge. The renderer's only link to Electron.</td>
+      <td><code>window.electronAPI.closeWindow()</code></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ============ SECTION 14: GLOSSARY ============ -->
+<div class="section" id="sec-glossary">
+  <h2>14. Beginner Glossary</h2>
+
+  <dl>
+    <div class="glossary-item"><dt>Main Process</dt><dd>The background "manager" of an Electron app. Has full access to the computer. Runs <code>main.js</code>. Only ONE main process per app.</dd></div>
+
+    <div class="glossary-item"><dt>Renderer Process</dt><dd>The "face" of the app - the HTML/CSS/JS running inside a BrowserWindow. Like a web page in a browser. Can have multiple renderer processes (one per window).</dd></div>
+
+    <div class="glossary-item"><dt>Preload Script</dt><dd>A JavaScript file that runs BEFORE the web page loads. Used to safely expose specific Electron/Node.js functions to the renderer via <code>contextBridge</code>.</dd></div>
+
+    <div class="glossary-item"><dt>BrowserWindow</dt><dd>A class that creates a new window. It's like opening a new browser tab, but for your desktop app. Each window runs its own renderer process.</dd></div>
+
+    <div class="glossary-item"><dt>IPC (Inter-Process Communication)</dt><dd>A way for the Main Process and Renderer Process to send messages to each other. They can't share memory, so they use IPC as a messaging system.</dd></div>
+
+    <div class="glossary-item"><dt>ipcMain</dt><dd>The Main Process side of IPC. Listens for messages with <code>ipcMain.on()</code>.</dd></div>
+
+    <div class="glossary-item"><dt>ipcRenderer</dt><dd>The Renderer side of IPC. Sends messages with <code>ipcRenderer.send()</code>. Used here only in the preload script.</dd></div>
+
+    <div class="glossary-item"><dt>contextBridge</dt><dd>A security tool that creates a safe bridge between the preload script and the web page. Only exposes what you explicitly allow.</dd></div>
+
+    <div class="glossary-item"><dt>contextIsolation</dt><dd>A security setting. When <code>true</code>, the web page can't access Node.js APIs directly. Only the preload script can bridge the gap.</dd></div>
+
+    <div class="glossary-item"><dt>spawn</dt><dd>A Node.js function to start a new program as a child process. Used here to start the Python backend.</dd></div>
+
+    <div class="glossary-item"><dt>userData</dt><dd>A special folder path (<code>app.getPath('userData')</code>) where the app is allowed to store user data. Safe and persistent.</dd></div>
+
+    <div class="glossary-item"><dt>app.whenReady()</dt><dd>Returns a Promise that resolves when Electron has finished initializing and is ready to create windows.</dd></div>
+
+    <div class="glossary-item"><dt>process.env</dt><dd>An object containing all environment variables. Like a list of settings the operating system provides.</dd></div>
+
+    <div class="glossary-item"><dt>__dirname</dt><dd>The directory (folder) that the current file is in. Used to build paths to other files.</dd></div>
+
+    <div class="glossary-item"><dt>Promise</dt><dd>A JavaScript object that represents something that will happen in the future. <code>await</code> pauses until it finishes.</dd></div>
+
+    <div class="glossary-item"><dt>require()</dt><dd>Node.js function to import a module (a package of code). Like <code>import</code> in browsers but for Node.js.</dd></div>
+
+    <div class="glossary-item"><dt>async/await</dt><dd>A way to write asynchronous code that looks like regular code. <code>async</code> marks a function as asynchronous. <code>await</code> pauses until a Promise finishes.</dd></div>
+  </dl>
+</div>
+
+<!-- ============ NAV BUTTONS ============ -->
+<div class="nav-buttons">
+  <button onclick="navigateSection(-1)" id="prevBtn" disabled>&larr; Previous</button>
+  <button onclick="navigateSection(1)" id="nextBtn">Next &rarr;</button>
+</div>
+
+<footer>
+  Novix Electron Learning Guide &bull; Generated from actual project source code
+</footer>
+
+</div><!-- end container -->
+
+<script>
+// ===== DATA =====
+const sections=['sec-toc','sec-overview','sec-package','sec-main','sec-preload','sec-renderer','sec-flow','sec-ipc','sec-architecture','sec-whatif','sec-absent','sec-summary','sec-quiz','sec-cheat','sec-glossary'];
+let currentSection=0;
+
+// ===== DARK/LIGHT MODE =====
+function toggleMode(){document.documentElement.dataset.mode=document.documentElement.dataset.mode==='light'?'dark':'light';}
+(function(){if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)document.documentElement.dataset.mode='light';})();
+
+// ===== PROGRESS BAR =====
+function updateProgress(){const pct=((currentSection+1)/sections.length)*100;document.getElementById('progressFill').style.width=pct+'%';}
+
+// ===== NAVIGATION =====
+function navigateSection(dir){
+  const next=currentSection+dir;
+  if(next<0||next>=sections.length)return;
+  currentSection=next;
+  const el=document.getElementById(sections[currentSection]);
+  if(el){el.scrollIntoView({behavior:'smooth',block:'start'});}
+  document.getElementById('prevBtn').disabled=currentSection===0;
+  document.getElementById('nextBtn').disabled=currentSection===sections.length-1;
+  updateProgress();
+}
+
+// Update current section on scroll
+let scrollTimer;
+window.addEventListener('scroll',function(){
+  clearTimeout(scrollTimer);
+  scrollTimer=setTimeout(function(){
+    const scrollTop=window.scrollY+100;
+    for(let i=sections.length-1;i>=0;i--){
+      const el=document.getElementById(sections[i]);
+      if(el&&el.offsetTop<=scrollTop){currentSection=i;updateProgress();document.getElementById('prevBtn').disabled=currentSection===0;document.getElementById('nextBtn').disabled=currentSection===sections.length-1;break;}
+    }
+  },100);
+});
+
+// ===== LINE-BY-LINE EXPLANATIONS =====
+document.querySelectorAll('.code-lines li').forEach(function(li){
+  li.addEventListener('click',function(){
+    // Remove active from siblings
+    const parent=this.closest('.code-lines');
+    parent.querySelectorAll('li').forEach(function(l){l.classList.remove('active');});
+    this.classList.add('active');
+
+    // Remove existing explanation
+    const existingExplanation=this.closest('.code-block').nextElementSibling;
+    if(existingExplanation&&existingExplanation.classList.contains('explanation'))existingExplanation.remove();
+
+    // Add explanation based on line content
+    const code=this.querySelector('code').textContent.trim();
+    const explanationDiv=document.createElement('div');
+    explanationDiv.className='explanation';
+    explanationDiv.innerHTML=getExplanation(code);
+    this.closest('.code-block').after(explanationDiv);
+    explanationDiv.scrollIntoView({behavior:'smooth',block:'nearest'});
+  });
+});
+
+function getExplanation(code){
+  if(code.includes('require("electron")')&&code.includes('app, BrowserWindow'))
+    return '<strong>Electron Imports:</strong> Gets the 4 main tools: <code>app</code> (app control), <code>BrowserWindow</code> (windows), <code>screen</code> (display info), <code>ipcMain</code> (messaging). These are the core building blocks of any Electron app.';
+  if(code.includes('require("child_process")')&&code.includes('spawn'))
+    return '<strong>Node.js spawn:</strong> Lets you start another program (like Python/Django) as a child process. The app needs this to run the backend.';
+  if(code.includes('require("child_process")')&&code.includes('execFileSync'))
+    return '<strong>Node.js execFileSync:</strong> Runs a command and waits for the result. Used to check free disk space via PowerShell.';
+  if(code.includes('require("https")'))
+    return '<strong>Node.js https:</strong> Makes secure web requests. Used to download the AI model from HuggingFace.';
+  if(code==='const fs = require("fs");')
+    return '<strong>Node.js fs (File System):</strong> Reads, writes, copies, deletes, and checks files. Essential for saving the model and database.';
+  if(code==='const http = require("http");')
+    return '<strong>Node.js http:</strong> Makes regular web requests. Used to check if Django is running by pinging localhost:8000.';
+  if(code==='const path = require("path");')
+    return '<strong>Node.js path:</strong> Works with file paths safely across different operating systems (Windows vs Mac vs Linux).';
+  if(code.includes('app.setName'))
+    return '<strong>app.setName():</strong> Sets the display name to "Novix". Shows up in taskbar and Alt+Tab menu.';
+  if(code.includes('djangoProcess = null'))
+    return '<strong>Global variable:</strong> Tracks the Django process so we can kill it later when the app closes. Starts as null (no process running yet).';
+  if(code.includes('MODEL_URL'))
+    return '<strong>Model URL:</strong> The download address for the AI brain file. Checks for an environment variable override first, falls back to the HuggingFace URL.';
+  if(code.includes('contextBridge.exposeInMainWorld'))
+    return '<strong>contextBridge.exposeInMainWorld():</strong> THE SECURITY BRIDGE! Creates <code>window.electronAPI</code> on the web page. Only exposes <code>closeWindow()</code>. The web page can\'t access anything else Electron-related.';
+  if(code.includes('ipcRenderer.send("close-window")'))
+    return '<strong>ipcRenderer.send():</strong> Sends a message called "close-window" from the preload to the main process. The main process will then close the window.';
+  if(code.includes('ipcMain.on("close-window"'))
+    return '<strong>ipcMain.on():</strong> Listens for the "close-window" message from the renderer. When received, finds the window and closes it.';
+  if(code.includes('window.electronAPI.closeWindow()'))
+    return '<strong>The Electron connection!</strong> The renderer calls this preload-exposed function, which sends an IPC message to the main process to close the window. This is the ONLY Electron-related line in the entire 478-line chat.js file.';
+  if(code.includes('app.whenReady()'))
+    return '<strong>app.whenReady():</strong> The starting gun! Electron fires this when it\'s fully initialized. The .then() block runs the startup sequence: start Django, wait for it, create window.';
+  if(code.includes('startDjango()'))
+    return '<strong>await startDjango():</strong> Downloads the model, copies the database, and spawns the Python backend. Uses await because these are async operations.';
+  if(code.includes('waitForDjango()'))
+    return '<strong>await waitForDjango():</strong> Polls Django every 500ms until it responds. Max 30 seconds. Must wait because Django takes a few seconds to start.';
+  if(code.includes('createWindow()')&&code.includes('createWindow()'))
+    return '<strong>createWindow():</strong> The final step of startup! Creates the BrowserWindow and loads chat.html. Only runs after Django is confirmed running.';
+  if(code.includes('new BrowserWindow'))
+    return '<strong>new BrowserWindow():</strong> Creates the actual window the user sees. Frame: false (no title bar), transparent: true (rounded corners), preload script set, context isolation ON for security.';
+  if(code.includes('loadFile')&&code.includes('chat.html'))
+    return '<strong>window.loadFile():</strong> Loads chat.html into the window. After this line, the renderer process starts - preload runs first, then the HTML/JS loads.';
+  if(code.includes('window-all-closed'))
+    return '<strong>window-all-closed event:</strong> Fires when the LAST window is closed. Kills Django and quits the app (except on Mac where apps stay alive).';
+  if(code.includes('before-quit'))
+    return '<strong>before-quit event:</strong> Safety net! Also kills Django when the app is about to quit. Handles cases like right-click > Quit from taskbar.';
+  if(code.includes('djangoProcess.kill()'))
+    return '<strong>djangoProcess.kill():</strong> Sends a signal to stop the Django process. Without this, Django would keep running as a zombie process eating CPU and memory.';
+  if(code.includes('createErrorWindow'))
+    return '<strong>Error window:</strong> If anything fails during startup, shows a simple window with the error message. The user needs to know WHY the app didn\'t start.';
+  if(code.includes('DOMContentLoaded'))
+    return '<strong>DOMContentLoaded listener:</strong> Runs when the HTML page finishes loading. Currently empty (placeholder for future use).';
+  if(code.includes('const { contextBridge, ipcRenderer }'))
+    return '<strong>Preload imports:</strong> Gets contextBridge (the security gatekeeper) and ipcRenderer (the messenger) from Electron.';
+  if(code.includes('getBackendEnv'))
+    return '<strong>getBackendEnv():</strong> Creates environment variables for Django. Adds NOVIX_DATA_DIR pointing to the app\'s safe data folder.';
+  if(code.includes('getFreeDiskSpace'))
+    return '<strong>getFreeDiskSpace():</strong> Runs PowerShell to check how much disk space is left. Used before downloading the ~600MB AI model.';
+  if(code.includes('downloadModel'))
+    return '<strong>downloadModel():</strong> Downloads the AI model with resume support (can continue if interrupted) and retry (tries 3 times). Uses HTTPS and streams to disk.';
+  if(code.includes('ensureModelAvailable'))
+    return '<strong>ensureModelAvailable():</strong> Checks if the model file exists. If not, checks disk space and downloads it. Only downloads on first run.';
+  if(code.includes('ensureDatabaseAvailable'))
+    return '<strong>ensureDatabaseAvailable():</strong> Checks if the SQLite database exists. If not, copies it from the bundled version. Handles packaged vs dev paths.';
+  if(code.includes('waitForDjango'))
+    return '<strong>waitForDjango():</strong> Repeatedly pings http://127.0.0.1:8000 every 500ms. Resolves when Django responds with 2xx/3xx. Rejects after 30 seconds.';
+  if(code.includes('startDjango()')&&code.includes('async'))
+    return '<strong>startDjango():</strong> Orchestrates backend setup: ensure model exists, ensure database exists, find the right backend path (packaged/dev/fallback), spawn it.';
+  if(code.includes('djangoProcess = spawn'))
+    return '<strong>spawn():</strong> Starts the Python backend as a child process. Passes working directory, environment variables, hides the console window, and captures stdout/stderr.';
+  if(code.includes('djangoProcess.stdout'))
+    return '<strong>stdout listener:</strong> Logs Django\'s normal output messages to the console. Helpful for debugging.';
+  if(code.includes('djangoProcess.stderr'))
+    return '<strong>stderr listener:</strong> Logs Django\'s error messages. Important for spotting problems.';
+  if(code.includes('djangoProcess.on("error"'))
+    return '<strong>Error handler:</strong> If the process fails to start (e.g., .exe not found), logs the error and clears djangoProcess.';
+  if(code.includes('djangoProcess.on("close"'))
+    return '<strong>Close handler:</strong> When Django stops for any reason, logs the exit code and clears djangoProcess.';
+  return '<strong>This line:</strong> '+(code.length>100?code.substring(0,100)+'...':code);
+}
+
+// ===== TOGGLE ALL EXPLANATIONS =====
+function toggleAllExplain(btn){
+  const container=btn.nextElementSibling;
+  if(!container||!container.classList.contains('all-explanations'))return;
+  const show=container.style.display==='none';
+  container.style.display=show?'block':'none';
+  btn.textContent=show?'Hide All Explanations':'Show All Explanations';
+}
+
+// ===== SEARCH =====
+document.getElementById('searchBox').addEventListener('input',function(){
+  const query=this.value.toLowerCase().trim();
+  document.querySelectorAll('.section, .toc').forEach(function(sec){
+    if(!query){sec.style.display='';return;}
+    const text=sec.textContent.toLowerCase();
+    sec.style.display=text.includes(query)?'':'none';
+  });
+});
+
+// ===== QUIZ (already handled by onclick) =====
+
+updateProgress();
+</script>
+</body>
+</html>

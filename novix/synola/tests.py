@@ -40,32 +40,41 @@ class ChatCompletionTests(TestCase):
         self.assertEqual(reply, "A coherent reply.")
         post.assert_called_once()
         endpoint, kwargs = post.call_args
-        self.assertEqual(endpoint[0], "http://127.0.0.1:8090/v1/chat/completions")
+        self.assertEqual(endpoint[0], "http://127.0.0.1:11434/v1/chat/completions")
+        self.assertEqual(kwargs["json"]["model"], "llama3.2:1b-instruct-q4_0")
         self.assertFalse(kwargs["json"]["stream"])
         self.assertEqual(kwargs["json"]["messages"][-1], {"role": "user", "content": "Hello"})
         self.assertEqual(kwargs["timeout"], 120)
 
 
 class InferenceEngineTests(TestCase):
-    @patch("synola.services.inference_engine.requests.get")
-    @patch("synola.services.inference_engine.subprocess.Popen")
-    @patch("synola.services.inference_engine.pick_runtime_config")
-    @patch("synola.services.inference_engine.ACTIVE_PATH")
-    def test_start_waits_for_health_and_stop_terminates_process(
-        self, active_path, runtime_config, popen, get
-    ):
-        process = Mock()
-        process.poll.return_value = None
-        popen.return_value = process
-        runtime_config.return_value = {"threads": 2, "ctx_size": 2048}
-        active_path.exists.return_value = True
-        get.return_value.status_code = 200
+    @patch.object(InferenceEngine, "model_available", return_value=True)
+    @patch.object(InferenceEngine, "is_healthy", return_value=True)
+    def test_start_succeeds_when_ollama_running_and_model_installed(self, is_healthy, model_available):
         engine = InferenceEngine()
 
         engine.start()
-        engine.stop()
 
-        popen.assert_called_once()
-        get.assert_called_once_with("http://127.0.0.1:8090/health", timeout=1)
-        process.terminate.assert_called_once_with()
-        process.wait.assert_called_once_with(timeout=10)
+        is_healthy.assert_called()
+        model_available.assert_called()
+
+    @patch.object(InferenceEngine, "model_available", side_effect=[False, True])
+    @patch.object(InferenceEngine, "_pull_model")
+    @patch.object(InferenceEngine, "is_healthy", return_value=True)
+    def test_start_pulls_model_when_missing(self, is_healthy, pull, model_available):
+        engine = InferenceEngine()
+
+        engine.start()
+
+        pull.assert_called_once()
+
+    @patch.object(InferenceEngine, "_start_ollama_server", side_effect=RuntimeError(
+        "Ollama is not installed. Install Ollama from https://ollama.com"
+    ))
+    @patch.object(InferenceEngine, "is_healthy", return_value=False)
+    def test_start_raises_when_ollama_unreachable(self, is_healthy, start_server):
+        engine = InferenceEngine()
+
+        with self.assertRaises(RuntimeError):
+            engine.start()
+        start_server.assert_called_once()

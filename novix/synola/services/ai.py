@@ -15,11 +15,9 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-# OLLAMA_URL = "http://localhost:11434/api/chat" #REST API endpoint exposed by the Ollama server
-# MODEL = "llama3.2:1b-instruct-q4_0"
-
-OLLAMA_URL = "http://127.0.0.1:8090/v1/chat/completions" #REST API endpoint exposed by the Ollama server
-# MODEL = "llama3.2:1b-instruct-q4_0"
+# REST API endpoint exposed by the Ollama server
+OLLAMA_URL = "http://127.0.0.1:11434/v1/chat/completions"
+MODEL = "qwen3:1.7b"
 
 def generate_summary(messages, existing_summary=None):
     logger.info("Generating conversation summary for %d messages", len(messages))
@@ -56,7 +54,7 @@ def generate_summary(messages, existing_summary=None):
     for message in messages:
         summary_prompt += f"\n {message['role'].upper()}: {message['content']}"
 
-    response = requests.post(OLLAMA_URL, json={"messages": [{"role": "system", "content": summary_prompt,}], "stream":False}, timeout=120,)
+    response = requests.post(OLLAMA_URL, json={"model": MODEL, "messages": [{"role": "system", "content": summary_prompt,}], "stream":False}, timeout=120,)
     logger.info("Summary generation returned HTTP %s", response.status_code)
 
     if not response.ok:
@@ -84,6 +82,7 @@ def generate(messages):
     response = requests.post(
         OLLAMA_URL,
         json={
+            "model": MODEL,
             "messages": messages,
             "stream": False,
         },
