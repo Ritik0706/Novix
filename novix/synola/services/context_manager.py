@@ -26,7 +26,7 @@ def get_unsummarized_messages(conversation):
     except ConversationSummary.DoesNotExist:
         summary = None
 
-    messages = conversation.messages.order_by("timestamp")
+    messages = conversation.messages.order_by("timestamp", "id")
 
     if summary and summary.last_summarized_message:
         messages = messages.filter(timestamp__gt = summary.last_summarized_message.timestamp)

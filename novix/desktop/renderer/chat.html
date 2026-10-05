@@ -26,6 +26,26 @@
 						<span>New Chat</span>
 					</button>
 				</div>
+				<section class="recommendation" aria-labelledby="recommendation-title">
+					<div class="recommendation-heading">
+						<span class="recommendation-kicker">SETUP</span>
+						<h4 id="recommendation-title">Model recommendation</h4>
+					</div>
+					<p id="recommendation-model">Checking this device...</p>
+					<p id="recommendation-reason" class="recommendation-reason"></p>
+					<button id="install-recommendation" type="button" disabled>Install recommended model</button>
+					<p id="recommendation-status" class="recommendation-status" role="status"></p>
+				</section>
+				<section class="model-management" aria-labelledby="model-management-title">
+					<div class="recommendation-heading">
+						<span class="recommendation-kicker">MODELS</span>
+						<h4 id="model-management-title">Installed models</h4>
+					</div>
+					<p id="model-storage" class="model-storage" role="status">Loading storage...</p>
+					<div id="model-list" class="model-list">
+						<p class="recommendation-status">Loading models...</p>
+					</div>
+				</section>
 				<div id="conversation-list"></div>
 			</div>
 
@@ -64,8 +84,10 @@
 				</div>
 
 				<div class="input-area">
+					<label for="image-input" class="image-btn" title="Attach an image">Attach</label>
+					<input id="image-input" type="file" accept="image/*" hidden />
 					<textarea id="msg" placeholder="Ask anything..."></textarea>
-					<button id="send">➜</button>
+					<button id="send" type="button">➜</button>
 				</div>
 			</div>
 		</div>

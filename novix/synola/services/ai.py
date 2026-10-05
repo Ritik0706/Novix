@@ -65,7 +65,7 @@ def generate_summary(messages, existing_summary=None):
     return response.json()["choices"][0]["message"]["content"].strip()
 
 
-def generate(messages): 
+def generate(messages, image=None):
     logger.info("Generating assistant response from %d messages", len(messages))
     messages = [
         {
@@ -79,6 +79,17 @@ def generate(messages):
             )
         }
     ] + messages
+
+    if image and messages:
+        last_message = messages[-1]
+        messages = messages[:-1] + [{
+            "role": last_message["role"],
+            "content": [
+                {"type": "text", "text": last_message["content"]},
+                {"type": "image_url", "image_url": {"url": image}},
+            ],
+        }]
+
     response = requests.post(
         OLLAMA_URL,
         json={

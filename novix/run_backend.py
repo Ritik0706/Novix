@@ -21,9 +21,13 @@ def main():
     call_command("migrate", interactive=False)
 
     from synola.services.inference_engine import engine
+    from synola.services.inference_engine import ACTIVE_PATH
 
-    logging.info("Starting inference engine...")
-    engine.start()
+    if ACTIVE_PATH.exists():
+        logging.info("Starting inference engine...")
+        engine.start()
+    else:
+        logging.info("No active model found; serving setup endpoints first.")
 
     try:
         logging.info("Database ready.")

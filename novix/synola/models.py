@@ -37,8 +37,14 @@ class ConversationSummary(models.Model):
 
 class InstalledModel(models.Model):
     display_name = models.CharField(max_length=255)
+    local_path = models.CharField(max_length=500, blank=True, default="")
     source_url = models.URLField()
     sha_256 = models.CharField(max_length=64, blank=True)
     size_bytes = models.BigIntegerField()
     context_length = models.IntegerField(default=4096)
+    architecture = models.CharField(max_length=100, blank=True, default="")
+    quantization = models.CharField(max_length=100, blank=True, default="")
+    chat_template = models.CharField(max_length=100, blank=True, default="")
+    capabilities = models.JSONField(default=dict)
+    is_active = models.BooleanField(default=False)
     installed_at = models.DateTimeField(auto_now=True)

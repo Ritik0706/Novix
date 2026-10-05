@@ -25,11 +25,19 @@
       "preload.js",
       "renderer/**/*"
     ],
+    "compression": "maximum",
+    "electronLanguages": [
+      "en-US"
+    ],
 
     "extraResources": [
       {
         "from": "../dist/novix-backend",
         "to": "backend"
+      },
+      {
+        "from": "../resources/llama",
+        "to": "llama"
       },
       {
         "from": "../.local_data/db.sqlite3",

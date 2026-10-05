@@ -195,6 +195,169 @@ textarea {
 	transform: scale(0.97);
 }
 
+.recommendation {
+	margin: 14px 10px;
+	padding: 12px;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 10px;
+	background: rgba(255, 255, 255, 0.04);
+}
+
+.recommendation-heading h4 {
+	margin: 3px 0 8px;
+	font-size: 13px;
+}
+
+.recommendation-kicker {
+	color: #aabaff;
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+}
+
+.recommendation p {
+	margin: 6px 0;
+	font-size: 11px;
+	line-height: 1.4;
+}
+
+.recommendation-reason,
+.recommendation-status {
+	color: #aeb6c9;
+}
+
+#install-recommendation {
+	width: 100%;
+	margin-top: 8px;
+	padding: 8px;
+	border: 0;
+	border-radius: 7px;
+	background: #5b8cff;
+	color: #fff;
+	font-size: 11px;
+	cursor: pointer;
+}
+
+#install-recommendation:disabled {
+	background: #3a4358;
+	color: #8992a7;
+	cursor: not-allowed;
+}
+
+/* Model management */
+.model-management {
+	margin: 14px 10px;
+	padding: 12px;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 10px;
+	background: rgba(255, 255, 255, 0.04);
+}
+
+.model-storage {
+	margin: 6px 0 10px;
+	font-size: 11px;
+	line-height: 1.4;
+	color: #aeb6c9;
+}
+
+.model-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	max-height: 220px;
+	overflow-y: auto;
+}
+
+.model-item {
+	padding: 8px;
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.model-item.active {
+	border-color: rgba(91, 140, 255, 0.5);
+	background: rgba(91, 140, 255, 0.1);
+}
+
+.model-item-info {
+	display: flex;
+	flex-direction: column;
+	margin-bottom: 6px;
+}
+
+.model-item-name {
+	font-size: 12px;
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.model-item-meta {
+	font-size: 10px;
+	color: #8992a7;
+	margin-top: 2px;
+}
+
+.model-item-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.model-activate-btn,
+.model-delete-btn {
+	flex: 1;
+	padding: 6px;
+	border: 0;
+	border-radius: 6px;
+	font-size: 10px;
+	cursor: pointer;
+}
+
+.model-activate-btn {
+	background: #5b8cff;
+	color: #fff;
+}
+
+.model-activate-btn:disabled,
+.model-delete-btn:disabled {
+	background: #3a4358;
+	color: #8992a7;
+	cursor: not-allowed;
+}
+
+.model-delete-btn {
+	background: rgba(239, 68, 68, 0.85);
+	color: #fff;
+}
+
+.model-active-badge {
+	display: inline-block;
+	padding: 4px 10px;
+	border-radius: 999px;
+	background: rgba(65, 214, 93, 0.18);
+	color: #41d65d;
+	font-size: 10px;
+	font-weight: 600;
+}
+
+.model-item-status {
+	margin: 6px 0 0;
+	font-size: 10px;
+	color: #aeb6c9;
+	min-height: 12px;
+}
+
+.model-item-status-success {
+	color: #41d65d;
+}
+
+.model-item-status-error {
+	color: #ef4444;
+}
+
 .sidebar ul {
 	list-style: none;
 	padding: 0;

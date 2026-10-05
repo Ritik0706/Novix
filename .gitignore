@@ -9,6 +9,8 @@ venv/
 *.env
 
 # Build artifacts
+build/
+dist/
 novix/build/
 novix/dist/
 novix/desktop/release/
