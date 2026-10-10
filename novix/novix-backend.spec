@@ -6,6 +6,7 @@ hiddenimports += collect_submodules('waitress')
 
 datas = [
     ('templates', 'templates'),
+    ('resources/llama', 'resources/llama'),
 ]
 
 
@@ -13,15 +14,8 @@ a = Analysis(
     ['run_backend.py'],
     pathex=[],
     binaries=[],
-<<<<<<< HEAD
     datas=datas,
     hiddenimports=hiddenimports,
-=======
-    datas=[
-        ('resources/llama', 'resources/llama'),
-    ],
-    hiddenimports=[],
->>>>>>> 6288dcb1db8e91970a586d3ff54fe3ec1d64ca3b
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import lru_cache
 import os
 from pathlib import Path
 import shutil
@@ -188,6 +189,7 @@ def runtime_status(hardware):
     }
 
 
+@lru_cache(maxsize=None)
 def validate_runtime(runtime: RuntimeDescriptor) -> dict:
     result = {
         "name": runtime.name,
@@ -242,16 +244,9 @@ def validate_runtime_pack(runtime):
 
 
 def preflight_runtime(runtime: RuntimeDescriptor) -> RuntimeDescriptor:
-    missing = runtime.missing_dependency_names()
-    if missing:
-        raise RuntimeDependencyError(
-            f"runtime has missing DLL dependencies; "
-            f"runtime={runtime.name!r}; "
-            f"directory={str(runtime.directory)!r}; "
-            f"missing={', '.join(sorted(missing))}"
-        )
-
-    _probe_executable(runtime)
+    validation = validate_runtime(runtime)
+    if not validation["valid"]:
+        raise _runtime_validation_error(runtime, validation)
     return runtime
 
 
@@ -295,10 +290,7 @@ def select_runtime(hardware, requested=None):
             runtime = runtimes[requested]
             validation = validate_runtime(runtime)
             if not validation["valid"]:
-                raise _runtime_validation_error(
-                    runtime,
-                    validate_runtime_pack(runtime),
-                )
+                raise _runtime_validation_error(runtime, validation)
 
             if requested == "cuda" and not hardware.get("cuda_available", False):
                 raise RuntimeValidationError(

@@ -32,7 +32,6 @@ def main():
     try:
         logging.info("Database ready.")
         logging.info("Starting Novix backend on http://127.0.0.1:8000")
-        from novix.wsgi import application
         serve(application, host="127.0.0.1", port=8000)
     finally:
         logging.info("Stopping inference engine...")
