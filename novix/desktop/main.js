@@ -52,6 +52,23 @@ function getFreeDiskSpace(directory) {
   ], { encoding: "utf8" }).trim());
 }
 
+function createSetupWindow(title, activeModelPath) {
+  const setupWindow = new BrowserWindow({
+    width: 600,
+    height: 400,
+    title: title,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+
+  // Replace this with your actual setup page.
+  setupWindow.loadFile('setup.html');
+
+  return setupWindow;
+}
+
 function downloadModel(url, destination, progress, attempt = 1) {
   const partPath = `${destination}.part`;
 
