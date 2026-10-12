@@ -16,7 +16,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 # REST API endpoint exposed by the Ollama server
-OLLAMA_URL = "http://127.0.0.1:11434/v1/chat/completions"
+OLLAMA_URL = "http://127.0.0.1:8090/v1/chat/completions"
 MODEL = "qwen3:1.7b"
 
 def generate_summary(messages, existing_summary=None):

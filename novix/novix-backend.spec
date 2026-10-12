@@ -1,21 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_submodules
-
-hiddenimports = ['waitress']
-hiddenimports += collect_submodules('waitress')
-
-datas = [
-    ('templates', 'templates'),
-    ('resources/llama', 'resources/llama'),
-]
 
 
 a = Analysis(
     ['run_backend.py'],
     pathex=[],
     binaries=[],
-    datas=datas,
-    hiddenimports=hiddenimports,
+    datas=[],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
