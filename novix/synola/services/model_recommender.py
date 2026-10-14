@@ -35,7 +35,10 @@ def install_recommended_model(suggestion: dict):
 def _load_catalog():
     with open(CATALOG_PATH, "r", encoding="utf-8") as f:
         catalog = json.load(f)
-    for device_class in catalog.get("device_classes", []):
+    device_classes = catalog.get("device_classes") or []
+    if not isinstance(device_classes, list) or not device_classes:
+        raise RuntimeError("Model recommendation catalog is empty or missing device classes")
+    for device_class in device_classes:
         for model in device_class.get("recommended_models", []):
             _validate_model_metadata(model)
     return catalog
@@ -89,7 +92,10 @@ def _classify_device(profile: dict, device_classes: list) -> dict:
 
 def recommend_model(profile: dict) -> dict:
     catalog = _load_catalog()
-    device_class = _classify_device(profile, catalog["device_classes"])
+    device_classes = catalog.get("device_classes") or []
+    if not device_classes:
+        raise RuntimeError("No device classes configured in model catalog")
+    device_class = _classify_device(profile, device_classes)
 
     candidates = device_class["recommended_models"]
     fitting = [m for m in candidates if _fit_mode(m, profile)]
@@ -97,7 +103,7 @@ def recommend_model(profile: dict) -> dict:
     if not fitting:
         logger.warning("No installable model fit profile %s", profile)
         all_candidates = [
-            m for dc in catalog["device_classes"] for m in dc["recommended_models"]
+            m for dc in device_classes for m in dc["recommended_models"]
         ]
         fitting = sorted(
             (m for m in all_candidates if _fit_mode(m, profile)),

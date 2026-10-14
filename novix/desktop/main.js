@@ -7,8 +7,6 @@ const path = require("path");
 app.setName('Novix');
 
 let djangoProcess = null;
-const MODEL_URL = process.env.NOVIX_MODEL_URL ||
-  "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_0.gguf";
 
 function getResourceRoot() {
   if (app.isPackaged) {
@@ -41,121 +39,6 @@ function getBackendEnv() {
     ...process.env,
     NOVIX_DATA_DIR: app.getPath('userData'),
   };
-}
-
-function getFreeDiskSpace(directory) {
-  const driveLetter = path.parse(directory).root[0];
-  return Number(execFileSync("powershell.exe", [
-    "-NoProfile",
-    "-Command",
-    `(Get-PSDrive -Name '${driveLetter}').Free`,
-  ], { encoding: "utf8" }).trim());
-}
-
-function createSetupWindow(title, activeModelPath) {
-  const setupWindow = new BrowserWindow({
-    width: 600,
-    height: 400,
-    title: title,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true
-    }
-  });
-
-  // Replace this with your actual setup page.
-  setupWindow.loadFile('setup.html');
-
-  return setupWindow;
-}
-
-function downloadModel(url, destination, progress, attempt = 1) {
-  const partPath = `${destination}.part`;
-
-  return new Promise((resolve, reject) => {
-    const request = (requestUrl, redirects = 0) => {
-      if (redirects > 5) {
-        reject(new Error("Too many redirects while downloading the AI model."));
-        return;
-      }
-
-      const existingBytes = fs.existsSync(partPath) ? fs.statSync(partPath).size : 0;
-      const requestOptions = new URL(requestUrl);
-      if (existingBytes) {
-        requestOptions.headers = { Range: `bytes=${existingBytes}-` };
-      }
-
-      https.get(requestOptions, (response) => {
-        if ([301, 302, 303, 307, 308].includes(response.statusCode)) {
-          response.resume();
-          request(new URL(response.headers.location, requestUrl).toString(), redirects + 1);
-          return;
-        }
-
-        if (response.statusCode !== (existingBytes ? 206 : 200)) {
-          response.resume();
-          reject(new Error(`Model download failed with HTTP ${response.statusCode}.`));
-          return;
-        }
-
-        const responseLength = Number(response.headers["content-length"] || 0);
-        const totalBytes = existingBytes + responseLength;
-        const output = fs.createWriteStream(partPath, { flags: existingBytes ? "a" : "w" });
-        let downloaded = existingBytes;
-
-        response.on("data", (chunk) => {
-          downloaded += chunk.length;
-          progress(downloaded, totalBytes);
-        });
-        response.on("error", (error) => {
-          output.destroy();
-          reject(error);
-        });
-        output.on("error", reject);
-        output.on("finish", () => {
-          if (!fs.existsSync(partPath) || fs.statSync(partPath).size === 0) {
-            reject(new Error("The model download produced an empty file."));
-            return;
-          }
-          fs.renameSync(partPath, destination);
-          resolve();
-        });
-        response.pipe(output);
-      }).on("error", reject);
-    };
-
-    request(url);
-  }).catch((error) => {
-    if (attempt >= 3) {
-      throw new Error(`Model download failed after ${attempt} attempts: ${error.message}`);
-    }
-    console.warn(`Model download attempt ${attempt} failed: ${error.message}`);
-    return new Promise((resolve) => setTimeout(resolve, 1000 * attempt))
-      .then(() => downloadModel(url, destination, progress, attempt + 1));
-  });
-}
-
-async function ensureModelAvailable() {
-  const dataModelDir = path.join(app.getPath('userData'), "models");
-  const activeModelPath = path.join(dataModelDir, "active_model.gguf");
-
-  if (fs.existsSync(activeModelPath)) {
-    console.log("Using existing model:", activeModelPath);
-    return;
-  }
-
-  fs.mkdirSync(dataModelDir, { recursive: true });
-  const freeBytes = getFreeDiskSpace(dataModelDir);
-  if (Number.isFinite(freeBytes) && freeBytes < 1024 * 1024 * 1024) {
-    throw new Error("Not enough free disk space to download the AI model. At least 1 GB is required.");
-  }
-
-  console.log("Downloading AI model from:", MODEL_URL);
-  await downloadModel(MODEL_URL, activeModelPath, (downloaded, total) => {
-    const percent = total ? Math.floor((downloaded / total) * 100) : null;
-    console.log(`Model download: ${downloaded} bytes${percent === null ? "" : ` (${percent}%)`}`);
-  });
-  console.log("Downloaded AI model to:", activeModelPath);
 }
 
 function createErrorWindow(error) {
@@ -237,9 +120,6 @@ function waitForDjango(timeoutMs = 120000) {
 }
 
 async function startDjango() {
-  await ensureModelAvailable();
-  ensureDatabaseAvailable();
-
   const projectRoot = path.join(__dirname, "..");
 
   const developmentBackendDir = path.join(
@@ -263,28 +143,20 @@ async function startDjango() {
     "novix-backend.exe"
   );
 
-  const fallbackScript = path.join(
-    projectRoot,
-    "run_backend.py"
-  );
-
   let backendPath;
   let backendCwd;
   let backendArgs = [];
-  let useExecutable = false;
 
   // Packaged Electron application
   if (app.isPackaged && fs.existsSync(packagedBackendPath)) {
     backendPath = packagedBackendPath;
     backendCwd = packagedBackendDir;
-    useExecutable = true;
   }
 
   // Development Electron application
   else if (fs.existsSync(developmentBackendPath)) {
     backendPath = developmentBackendPath;
     backendCwd = developmentBackendDir;
-    useExecutable = true;
   }
 
   // Development fallback
@@ -361,14 +233,10 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
-  const dataModelDir = path.join(app.getPath('userData'), "models");
-  const activeModelPath = path.join(dataModelDir, "active_model.gguf");
-  const setupWindow = createSetupWindow("Selecting model...", activeModelPath);
   try {
     ensureDatabaseAvailable();
-    await startDjango(setupWindow);
+    await startDjango();
     await waitForDjango();
-    await ensureModelAvailable(setupWindow);
   } catch (error) {
     console.error("Backend startup failed:", error);
     if (djangoProcess) {
@@ -379,7 +247,6 @@ app.whenReady().then(async () => {
     return;
   }
 
-  if (!setupWindow.isDestroyed()) setupWindow.close();
   createWindow();
 });
 

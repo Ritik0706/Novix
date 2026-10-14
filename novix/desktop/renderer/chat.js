@@ -88,7 +88,7 @@ async function loadStorage() {
 
 async function loadModels() {
     const list = document.getElementById("model-list");
-    if (!list) return;
+    if (!list) return null;
 
     list.innerHTML = `<p class="recommendation-status">Loading models...</p>`;
 
@@ -97,14 +97,21 @@ async function loadModels() {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Failed to load models");
 
-        renderModels(data.models || []);
+        if (!Array.isArray(data.models)) throw new Error("Invalid models response");
+        const models = data.models;
+        renderModels(models);
+        return models;
     } catch (error) {
         list.innerHTML = `<p class="recommendation-status">${error.message || "Failed to load models"}</p>`;
+        return null;
     }
 }
 
 async function refreshModelsAndStorage() {
-    await Promise.all([loadModels(), loadStorage()]);
+    const [models] = await Promise.all([loadModels(), loadStorage()]);
+    if (models && models.length === 0) {
+        document.getElementById("card").classList.add("open");
+    }
 }
 
 function renderModels(models) {

@@ -195,7 +195,7 @@ def model_recommendation(request):
         try:
             profile = get_hardware_profile()
             suggestion = recommend_model(profile)
-        except (OSError, RuntimeError, ValueError):
+        except (OSError, RuntimeError, ValueError, KeyError, TypeError):
             logger.exception("Could not create model recommendation")
             return json_response({"error": "Unable to create a model recommendation"}, status=500)
         return json_response({"hardware": profile, "recommendation": suggestion})
@@ -207,7 +207,7 @@ def model_recommendation(request):
             if not suggestion["installable"]:
                 return json_response({"error": "The recommendation is not available for download yet"}, status=409)
             install_recommended_model(suggestion)
-        except (OSError, RuntimeError, ValueError):
+        except (OSError, RuntimeError, ValueError, KeyError, TypeError):
             logger.exception("Could not install recommended model")
             return json_response({"error": "Unable to install recommended model"}, status=500)
         return json_response({"status": "active", "recommendation": suggestion})

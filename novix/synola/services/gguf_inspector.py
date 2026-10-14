@@ -1,15 +1,41 @@
 from gguf import GGUFReader
 
 
+def _normalize_metadata_value(value):
+    if hasattr(value, "item") and callable(value.item):
+        try:
+            value = value.item()
+        except (TypeError, ValueError):
+            pass
+    if hasattr(value, "tolist"):
+        try:
+            value = value.tolist()
+        except TypeError:
+            pass
+    if isinstance(value, (list, tuple)):
+        if len(value) == 1:
+            return _normalize_metadata_value(value[0])
+        return [
+            _normalize_metadata_value(item)
+            for item in value
+        ]
+    if isinstance(value, (bytes, bytearray)):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
 def inspect_gguf(path):
     reader = GGUFReader(str(path))
 
-    meta = {
-        key: field.parts[-1]
-        for key, field in reader.fields.items()
-    }
+    meta = {}
+    for key, field in reader.fields.items():
+        try:
+            value = field.contents()
+        except Exception:
+            value = getattr(field, "parts", [-1])[-1]
+        meta[key] = _normalize_metadata_value(value)
 
-    arch = meta.get("general.architecture", "")
+    arch = str(meta.get("general.architecture", ""))
 
     quant_map = {
         0: "F32",
@@ -29,21 +55,26 @@ def inspect_gguf(path):
         17: "Q5_K_M",
         18: "Q6_K",
     }
+    file_type = meta.get("general.file_type")
+    try:
+        quant_value = int(file_type)
+    except (TypeError, ValueError):
+        quant_value = None
+
+    context_length = meta.get(f"{arch}.context_length", 4096)
+    try:
+        context_length = int(context_length)
+    except (TypeError, ValueError):
+        context_length = 4096
 
     return {
         "architecture": arch,
         "quantization": quant_map.get(
-            meta.get("general.file_type"),
-            str(meta.get("general.file_type", "")),
+            quant_value,
+            str(file_type if file_type is not None else ""),
         ),
-        "context_length": meta.get(
-            f"{arch}.context_length",
-            4096,
-        ),
-        "chat_template": meta.get(
-            "tokenizer.chat_template",
-            "",
-        ),
+        "context_length": context_length,
+        "chat_template": meta.get("tokenizer.chat_template", ""),
         "capabilities": {
             "vision": arch.lower() in {
                 "llava",

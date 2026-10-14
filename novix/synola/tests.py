@@ -73,11 +73,6 @@ class ChatCompletionTests(TestCase):
 
 
 class InferenceEngineTests(TestCase):
-<<<<<<< HEAD
-    @patch.object(InferenceEngine, "model_available", return_value=True)
-    @patch.object(InferenceEngine, "is_healthy", return_value=True)
-    def test_start_succeeds_when_ollama_running_and_model_installed(self, is_healthy, model_available):
-=======
     @patch("synola.services.runtime_manager.probe_runtime")
     @patch("synola.services.inference_engine.get_hardware_profile")
     @patch("synola.services.inference_engine.requests.get")
@@ -109,36 +104,10 @@ class InferenceEngineTests(TestCase):
             runtime=SimpleNamespace(name="cpu", directory="runtime"),
             reason="CPU fallback",
         )
->>>>>>> 6288dcb1db8e91970a586d3ff54fe3ec1d64ca3b
         engine = InferenceEngine()
 
         engine.start()
 
-<<<<<<< HEAD
-        is_healthy.assert_called()
-        model_available.assert_called()
-
-    @patch.object(InferenceEngine, "model_available", side_effect=[False, True])
-    @patch.object(InferenceEngine, "_pull_model")
-    @patch.object(InferenceEngine, "is_healthy", return_value=True)
-    def test_start_pulls_model_when_missing(self, is_healthy, pull, model_available):
-        engine = InferenceEngine()
-
-        engine.start()
-
-        pull.assert_called_once()
-
-    @patch.object(InferenceEngine, "_start_ollama_server", side_effect=RuntimeError(
-        "Ollama is not installed. Install Ollama from https://ollama.com"
-    ))
-    @patch.object(InferenceEngine, "is_healthy", return_value=False)
-    def test_start_raises_when_ollama_unreachable(self, is_healthy, start_server):
-        engine = InferenceEngine()
-
-        with self.assertRaises(RuntimeError):
-            engine.start()
-        start_server.assert_called_once()
-=======
         popen.assert_called_once()
         get.assert_called_once_with("http://127.0.0.1:8090/health", timeout=1)
         process.terminate.assert_called_once_with()
@@ -204,7 +173,7 @@ class GGUFInspectorTests(TestCase):
         fake_reader = Mock()
         fake_reader.fields = {
             "general.architecture": FakeField("llama"),
-            "general.file_type": FakeField(SimpleNamespace(item=lambda: 2)),
+            "general.file_type": FakeField(SimpleNamespace(item=lambda: 1)),
             "llama.context_length": FakeField(8192),
             "tokenizer.chat_template": FakeField("{{bos}}"),
         }
@@ -730,4 +699,3 @@ class LaunchArgumentTests(TestCase):
         )
 
         self.assertEqual(plan.environment["PATH"].split(os.pathsep)[0], str(self.gpu_runtime.directory))
->>>>>>> 6288dcb1db8e91970a586d3ff54fe3ec1d64ca3b
