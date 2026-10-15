@@ -97,20 +97,13 @@ def recommend_model(profile: dict) -> dict:
         raise RuntimeError("No device classes configured in model catalog")
     device_class = _classify_device(profile, device_classes)
 
-    candidates = device_class["recommended_models"]
-    fitting = [m for m in candidates if _fit_mode(m, profile)]
+    all_candidates = [
+        model for dc in device_classes for model in dc["recommended_models"]
+    ]
+    fitting = [model for model in all_candidates if _fit_mode(model, profile)]
 
     if not fitting:
         logger.warning("No installable model fit profile %s", profile)
-        all_candidates = [
-            m for dc in device_classes for m in dc["recommended_models"]
-        ]
-        fitting = sorted(
-            (m for m in all_candidates if _fit_mode(m, profile)),
-            key=lambda m: _parse_gb(m.get("ram_footprint")),
-        )[:1]
-
-    if not fitting:
         raise RuntimeError("No models available in catalog")
 
     chosen = max(fitting, key=lambda m: _parse_gb(m["ram_footprint"]))
@@ -125,22 +118,29 @@ def recommend_model(profile: dict) -> dict:
 
 
 def get_model_options(profile: dict, free_bytes: int) -> list[dict]:
-    """Return installable catalog models for this device, ordered best to smallest."""
+    """Return runnable catalog models for this device, ordered best to smallest."""
     catalog = _load_catalog()
     device_class = _classify_device(profile, catalog.get("device_classes") or [])
     recommendation = recommend_model(profile)
     recommended_id = recommendation["model"].get("sha_256")
     options = []
-    ram_ranking = {}
 
-    for model in device_class["recommended_models"]:
+    catalog_models = [
+        model
+        for dc in (device_class, *[item for item in catalog["device_classes"] if item is not device_class])
+        for model in dc["recommended_models"]
+    ]
+    seen_ids = set()
+    for model in catalog_models:
+        model_id = model["sha_256"]
+        if model_id in seen_ids:
+            continue
+
         fit_mode = _fit_mode(model, profile)
         if not fit_mode:
             continue
-
+        seen_ids.add(model_id)
         size_bytes = model["size_bytes"]
-        model_id = model["sha_256"]
-        ram_ranking[model_id] = _parse_gb(model.get("ram_footprint"))
         options.append({
             "id": model_id,
             "display_name": model["model"],
@@ -155,12 +155,6 @@ def get_model_options(profile: dict, free_bytes: int) -> list[dict]:
             "installable": _is_installable(model) and size_bytes * 2 <= free_bytes,
         })
 
-    options.sort(
-        key=lambda option: (
-            not option["installable"],
-            -ram_ranking[option["id"]],
-        )
-    )
     recommended = next(
         (option for option in options
          if option["id"] == recommended_id and option["installable"]),
@@ -173,6 +167,13 @@ def get_model_options(profile: dict, free_bytes: int) -> list[dict]:
         )
     if recommended:
         recommended["recommended"] = True
+    options.sort(
+        key=lambda option: (
+            not option["installable"],
+            not option["recommended"],
+            -option["size_bytes"],
+        )
+    )
     return options
 
 
@@ -180,14 +181,18 @@ def get_installable_model(model_id: str, profile: dict, free_bytes: int) -> dict
     """Resolve a catalog ID only when its model still fits and has enough disk space."""
     catalog = _load_catalog()
     device_class = _classify_device(profile, catalog.get("device_classes") or [])
-    for model in device_class["recommended_models"]:
-        if model.get("sha_256") != model_id:
-            continue
-        if not _fit_mode(model, profile):
-            return None
-        if not _is_installable(model) or model["size_bytes"] * 2 > free_bytes:
-            return None
-        return model
+    catalog_models = [
+        model
+        for dc in (device_class, *[item for item in catalog["device_classes"] if item is not device_class])
+        for model in dc["recommended_models"]
+    ]
+    for model in catalog_models:
+        if model.get("sha_256") == model_id:
+            if not _fit_mode(model, profile):
+                continue
+            if not _is_installable(model) or model["size_bytes"] * 2 > free_bytes:
+                return None
+            return model
     return None
 
 

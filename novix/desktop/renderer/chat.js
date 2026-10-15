@@ -87,7 +87,7 @@ function renderSettingsModels(models, currentModel, installedModels) {
         options.push({
             id: installed.catalog_id || `installed-${installed.id}`,
             display_name: installed.display_name,
-            description: "Downloaded on this device. Switching to it does not download it again.",
+            description: "Already downloaded on this device. Switching to it replaces the current model.",
             size_bytes: installed.size_bytes,
             quantization: installed.quantization,
             context_length: installed.context_length,
@@ -180,7 +180,7 @@ function renderSettingsModels(models, currentModel, installedModels) {
             button.type = "button";
             button.dataset.modelId = model.id;
             button.textContent = model.installable
-                ? currentModel ? "Download and replace" : "Download"
+                ? installedModels.length ? "Download and replace" : "Download"
                 : "Not enough storage";
             button.disabled = settingsOperationInProgress || !model.installable;
             actions.appendChild(button);
@@ -200,6 +200,9 @@ async function loadModelSettings() {
     }
 
     modelSettings = data;
+    text.placeholder = data.installed_models.length
+        ? "Ask anything..."
+        : "Please download a model in Model settings to start chatting...";
     renderDeviceSettings(data);
     renderSettingsModels(data.models, getActiveModel(), data.installed_models);
     return data;
@@ -289,7 +292,7 @@ function confirmRemoveModel(model) {
 function confirmSwitchInstalledModel(model) {
     showSettingsConfirmation(
         `Switch to ${model.display_name}?`,
-        "This model is already downloaded, so it will be activated without another download.",
+        "This model is already on your device and will replace the currently stored model.",
         "Switch model",
         () => activateDownloadedModel(model),
     );
@@ -424,11 +427,12 @@ document.getElementById("settings-model-list").addEventListener("click", (event)
     const model = modelSettings.models.find((item) => item.id === button.dataset.modelId);
     if (!model || !model.installable) return;
 
-    const activeModel = getActiveModel();
-    if (activeModel) {
+    const installedModels = modelSettings.installed_models;
+    if (installedModels.length) {
+        const currentModel = getActiveModel() || installedModels[0];
         showSettingsConfirmation(
-            `Replace ${activeModel.display_name}?`,
-            `${model.display_name} will be downloaded and activated. The current model will stop running.`,
+            "Replace downloaded model?",
+            `${model.display_name} will replace ${currentModel.display_name}. Only one model can be downloaded at a time.`,
             "Install and replace",
             () => installSettingsModel(model),
         );

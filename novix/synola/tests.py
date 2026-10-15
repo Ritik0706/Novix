@@ -12,10 +12,15 @@ from synola.models import Conversation, ConversationSummary, InstalledModel, Mes
 from synola.services import ai
 from synola.services.context_manager import build_context
 from synola.services.inference_engine import InferenceEngine
-from synola.services.model_manager import remove_active_model
+from synola.services.model_manager import (
+    activate_installed_model,
+    remove_active_model,
+    swap_model,
+)
 from synola.services.model_recommender import (
     _fit_mode,
     _load_catalog,
+    get_installable_model,
     get_model_options,
 )
 from synola.services.runtime_manager import (
@@ -488,9 +493,25 @@ class ModelFitTests(TestCase):
         self.assertTrue(options[0]["recommended"])
         self.assertTrue(all(option["installable"] for option in options))
         self.assertEqual(
-            options,
-            sorted(options, key=lambda option: option["size_bytes"], reverse=True),
+            options[1:],
+            sorted(options[1:], key=lambda option: option["size_bytes"], reverse=True),
         )
+        self.assertIn(
+            "c55a83bfb6396799337853ca69918a0b9bbb2917621078c34570bc17d20fd7a1",
+            {option["id"] for option in options},
+        )
+
+    def test_model_from_another_device_class_is_installable_when_it_fits(self):
+        profile = {"ram_gb": 8, "vram_gb": 0, "gpu_name": None}
+
+        model = get_installable_model(
+            "c55a83bfb6396799337853ca69918a0b9bbb2917621078c34570bc17d20fd7a1",
+            profile,
+            free_bytes=100 * 1024 ** 3,
+        )
+
+        self.assertIsNotNone(model)
+        self.assertEqual(model["model"], "meta-llama/Llama-3.2-3B-Instruct")
 
     def test_model_options_recommend_an_installable_model_when_storage_is_limited(self):
         options = get_model_options(
@@ -729,10 +750,18 @@ class InstalledModelApiTests(TestCase):
             installed_path.parent.mkdir()
             active_path.write_bytes(b"active")
             installed_path.write_bytes(b"installed")
+            previous_path = installed_path.parent / "previous.gguf"
+            previous_path.write_bytes(b"previous")
             self.model.local_path = str(installed_path)
             self.model.is_active = True
             self.model.save(update_fields=["local_path", "is_active"])
             model_id = self.model.pk
+            previous = InstalledModel.objects.create(
+                display_name="Previously downloaded model",
+                source_url="https://huggingface.co/test/previous.gguf",
+                size_bytes=10,
+                local_path=str(previous_path),
+            )
 
             with patch("synola.services.model_manager.ACTIVE_PATH", active_path):
                 removed = remove_active_model()
@@ -740,9 +769,100 @@ class InstalledModelApiTests(TestCase):
             self.assertEqual(removed.display_name, self.model.display_name)
             self.assertFalse(active_path.exists())
             self.assertFalse(installed_path.exists())
+            self.assertFalse(previous_path.exists())
             self.assertFalse(InstalledModel.objects.filter(pk=model_id).exists())
+            self.assertFalse(InstalledModel.objects.filter(pk=previous.pk).exists())
             inference_engine.stop.assert_called_once_with()
             inference_engine.start.assert_not_called()
+
+
+class SingleDownloadedModelTests(TestCase):
+    def test_installing_replacement_removes_previous_download(self):
+        with TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            installed_dir = root / "installed"
+            installed_dir.mkdir()
+            active_path = root / "active_model.gguf"
+            backup_path = root / "active_model.gguf.backup"
+            old_library = installed_dir / "old.gguf"
+            staged_path = root / "candidate.gguf"
+            active_path.write_bytes(b"old active")
+            old_library.write_bytes(b"old model")
+            staged_path.write_bytes(b"new model")
+            InstalledModel.objects.create(
+                display_name="Previous model",
+                source_url="https://huggingface.co/test/old.gguf",
+                sha_256="a" * 64,
+                size_bytes=10,
+                local_path=str(old_library),
+                is_active=True,
+            )
+
+            metadata = {
+                "display_name": "Replacement model",
+                "source_url": "https://huggingface.co/test/new.gguf",
+                "sha_256": "b" * 64,
+                "size_bytes": 10,
+                "architecture": "test",
+                "quantization": "Q4",
+            }
+            with (
+                patch("synola.services.model_manager.MODEL_DIR", root),
+                patch("synola.services.model_manager.INSTALLED_DIR", installed_dir),
+                patch("synola.services.model_manager.ACTIVE_PATH", active_path),
+                patch("synola.services.model_manager.BACKUP_PATH", backup_path),
+                patch("synola.services.model_manager.engine") as inference_engine,
+            ):
+                swap_model(staged_path, metadata)
+
+            installed = list(InstalledModel.objects.all())
+            self.assertEqual(len(installed), 1)
+            self.assertEqual(installed[0].display_name, "Replacement model")
+            self.assertTrue(installed[0].is_active)
+            self.assertFalse(old_library.exists())
+            self.assertFalse(backup_path.exists())
+            self.assertEqual(active_path.read_bytes(), b"new model")
+            inference_engine.start.assert_called_once_with(active_path)
+
+    def test_activating_legacy_download_keeps_only_selected_model(self):
+        with TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            installed_dir = root / "installed"
+            installed_dir.mkdir()
+            active_path = root / "active_model.gguf"
+            backup_path = root / "active_model.gguf.backup"
+            selected_path = installed_dir / "selected.gguf"
+            old_path = installed_dir / "old.gguf"
+            active_path.write_bytes(b"old active")
+            selected_path.write_bytes(b"selected model")
+            old_path.write_bytes(b"old model")
+            selected = InstalledModel.objects.create(
+                display_name="Selected model",
+                source_url="https://huggingface.co/test/selected.gguf",
+                size_bytes=10,
+                local_path=str(selected_path),
+            )
+            previous = InstalledModel.objects.create(
+                display_name="Previous model",
+                source_url="https://huggingface.co/test/old.gguf",
+                size_bytes=10,
+                local_path=str(old_path),
+                is_active=True,
+            )
+
+            with (
+                patch("synola.services.model_manager.MODEL_DIR", root),
+                patch("synola.services.model_manager.ACTIVE_PATH", active_path),
+                patch("synola.services.model_manager.BACKUP_PATH", backup_path),
+                patch("synola.services.model_manager.engine") as inference_engine,
+            ):
+                activate_installed_model(selected.id)
+
+            self.assertTrue(InstalledModel.objects.filter(pk=selected.pk, is_active=True).exists())
+            self.assertFalse(InstalledModel.objects.filter(pk=previous.pk).exists())
+            self.assertFalse(old_path.exists())
+            self.assertEqual(active_path.read_bytes(), b"selected model")
+            inference_engine.start.assert_called_once_with(active_path)
 
 
 class HardwareProbeTests(TestCase):

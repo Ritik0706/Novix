@@ -45,6 +45,29 @@ def _normalize_metadata(metadata: dict, staged_path) -> dict:
     return metadata
 
 
+def _delete_other_installed_models(keep_model):
+    others = list(InstalledModel.objects.exclude(pk=keep_model.pk))
+    if not others:
+        return [], keep_model.local_path
+
+    paths = [model.local_path for model in others if model.local_path]
+    InstalledModel.objects.filter(pk__in=[model.pk for model in others]).delete()
+    return paths, keep_model.local_path
+
+
+def _cleanup_other_model_files(paths, keep_path):
+    keep_path = os.path.abspath(keep_path) if keep_path else None
+    for path in paths:
+        if keep_path and os.path.abspath(path) == keep_path:
+            continue
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            logger.warning("Previous installed model file was already missing: %s", path)
+        except OSError:
+            logger.exception("Could not remove previous installed model file %s", path)
+
+
 @_serialized_operation
 def swap_model(staged_path, metadata: dict):
     """Replace the active model and restore it if the candidate cannot start."""
@@ -86,7 +109,7 @@ def swap_model(staged_path, metadata: dict):
             lookup = {"sha_256": metadata["sha_256"]} if metadata.get("sha_256") else {
                 "source_url": metadata["source_url"]
             }
-            InstalledModel.objects.update_or_create(
+            installed_model, _ = InstalledModel.objects.update_or_create(
                 **lookup,
                 defaults={
                     **metadata,
@@ -94,6 +117,7 @@ def swap_model(staged_path, metadata: dict):
                     "is_active": True,
                 },
             )
+            old_paths, keep_path = _delete_other_installed_models(installed_model)
         if BACKUP_PATH.exists():
             try:
                 BACKUP_PATH.unlink()
@@ -110,6 +134,7 @@ def swap_model(staged_path, metadata: dict):
             engine.start(ACTIVE_PATH)
         raise
 
+    _cleanup_other_model_files(old_paths, keep_path)
     logger.info("Model swap completed; active model is %s", ACTIVE_PATH)
 
 
@@ -136,6 +161,7 @@ def activate_installed_model(model_id):
             InstalledModel.objects.filter(is_active=True).update(is_active=False)
             model.is_active = True
             model.save(update_fields=["is_active", "installed_at"])
+            old_paths, keep_path = _delete_other_installed_models(model)
         if BACKUP_PATH.exists():
             BACKUP_PATH.unlink()
     except Exception:
@@ -149,6 +175,7 @@ def activate_installed_model(model_id):
             engine.start(ACTIVE_PATH)
         raise
 
+    _cleanup_other_model_files(old_paths, keep_path)
     logger.info("Activated installed model %s", model.display_name)
 
 
@@ -160,6 +187,11 @@ def remove_active_model():
         return None
 
     library_path = os.fspath(model.local_path) if model.local_path else None
+    other_models = list(InstalledModel.objects.exclude(pk=model.pk))
+    other_paths = [
+        other.local_path for other in other_models
+        if other.local_path and other.local_path != library_path
+    ]
     active_backup = ACTIVE_PATH.with_name(f"{ACTIVE_PATH.name}.{model.pk}.remove-backup")
     library_backup = (
         os.path.join(
@@ -179,7 +211,10 @@ def remove_active_model():
             os.replace(ACTIVE_PATH, active_backup)
         if had_library_file:
             os.replace(library_path, library_backup)
-        model.delete()
+        with transaction.atomic():
+            InstalledModel.objects.filter(
+                pk__in=[model.pk, *(other.pk for other in other_models)]
+            ).delete()
     except Exception:
         if library_backup and os.path.exists(library_backup):
             os.replace(library_backup, library_path)
@@ -196,5 +231,6 @@ def remove_active_model():
             except OSError:
                 logger.warning("Could not remove model-removal backup at %s", backup)
 
+    _cleanup_other_model_files(other_paths, None)
     logger.info("Removed active model %s", model.display_name)
     return model
