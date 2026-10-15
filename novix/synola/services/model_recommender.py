@@ -124,6 +124,73 @@ def recommend_model(profile: dict) -> dict:
     }
 
 
+def get_model_options(profile: dict, free_bytes: int) -> list[dict]:
+    """Return installable catalog models for this device, ordered best to smallest."""
+    catalog = _load_catalog()
+    device_class = _classify_device(profile, catalog.get("device_classes") or [])
+    recommendation = recommend_model(profile)
+    recommended_id = recommendation["model"].get("sha_256")
+    options = []
+    ram_ranking = {}
+
+    for model in device_class["recommended_models"]:
+        fit_mode = _fit_mode(model, profile)
+        if not fit_mode:
+            continue
+
+        size_bytes = model["size_bytes"]
+        model_id = model["sha_256"]
+        ram_ranking[model_id] = _parse_gb(model.get("ram_footprint"))
+        options.append({
+            "id": model_id,
+            "display_name": model["model"],
+            "description": model.get("rationale", ""),
+            "size_bytes": size_bytes,
+            "quantization": model.get("quantization", ""),
+            "context_length": model.get("context_length", ""),
+            "speed": model.get("tokens_per_second", ""),
+            "fit_mode": fit_mode,
+            "vision_support": bool(model.get("vision_support", False)),
+            "recommended": False,
+            "installable": _is_installable(model) and size_bytes * 2 <= free_bytes,
+        })
+
+    options.sort(
+        key=lambda option: (
+            not option["installable"],
+            -ram_ranking[option["id"]],
+        )
+    )
+    recommended = next(
+        (option for option in options
+         if option["id"] == recommended_id and option["installable"]),
+        None,
+    )
+    if recommended is None:
+        recommended = next(
+            (option for option in options if option["installable"]),
+            next((option for option in options if option["id"] == recommended_id), None),
+        )
+    if recommended:
+        recommended["recommended"] = True
+    return options
+
+
+def get_installable_model(model_id: str, profile: dict, free_bytes: int) -> dict | None:
+    """Resolve a catalog ID only when its model still fits and has enough disk space."""
+    catalog = _load_catalog()
+    device_class = _classify_device(profile, catalog.get("device_classes") or [])
+    for model in device_class["recommended_models"]:
+        if model.get("sha_256") != model_id:
+            continue
+        if not _fit_mode(model, profile):
+            return None
+        if not _is_installable(model) or model["size_bytes"] * 2 > free_bytes:
+            return None
+        return model
+    return None
+
+
 def _format_fit_reason(profile: dict, fit_mode: str) -> str:
     if fit_mode == "gpu":
         return f"Fits on GPU within {profile['vram_gb']}GB VRAM ({profile.get('gpu_name') or 'detected GPU'})"

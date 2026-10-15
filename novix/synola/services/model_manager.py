@@ -150,3 +150,51 @@ def activate_installed_model(model_id):
         raise
 
     logger.info("Activated installed model %s", model.display_name)
+
+
+@_serialized_operation
+def remove_active_model():
+    """Stop inference and remove the active model and its installed library copy."""
+    model = InstalledModel.objects.filter(is_active=True).first()
+    if model is None:
+        return None
+
+    library_path = os.fspath(model.local_path) if model.local_path else None
+    active_backup = ACTIVE_PATH.with_name(f"{ACTIVE_PATH.name}.{model.pk}.remove-backup")
+    library_backup = (
+        os.path.join(
+            os.path.dirname(library_path),
+            f"{os.path.basename(library_path)}.{model.pk}.remove-backup",
+        )
+        if library_path else None
+    )
+    if active_backup.exists() or (library_backup and os.path.exists(library_backup)):
+        raise RuntimeError("A previous model removal needs recovery")
+
+    had_active_file = ACTIVE_PATH.exists()
+    had_library_file = bool(library_path and os.path.exists(library_path))
+    engine.stop()
+    try:
+        if had_active_file:
+            os.replace(ACTIVE_PATH, active_backup)
+        if had_library_file:
+            os.replace(library_path, library_backup)
+        model.delete()
+    except Exception:
+        if library_backup and os.path.exists(library_backup):
+            os.replace(library_backup, library_path)
+        if active_backup.exists():
+            os.replace(active_backup, ACTIVE_PATH)
+        if had_active_file and ACTIVE_PATH.exists():
+            engine.start(ACTIVE_PATH)
+        raise
+
+    for backup in (active_backup, library_backup):
+        if backup and os.path.exists(backup):
+            try:
+                os.remove(backup)
+            except OSError:
+                logger.warning("Could not remove model-removal backup at %s", backup)
+
+    logger.info("Removed active model %s", model.display_name)
+    return model

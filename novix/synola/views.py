@@ -12,9 +12,19 @@ from synola.models import Conversation, InstalledModel, Message
 from synola.services.ai import generate, generate_summary
 from synola.services.context_manager import build_context, create_or_update_summary
 from synola.services.model_downloader import download_model
-from synola.services.model_manager import STAGING_PATH, activate_installed_model, swap_model
+from synola.services.model_manager import (
+    STAGING_PATH,
+    activate_installed_model,
+    remove_active_model,
+    swap_model,
+)
 from synola.services.hardware import get_hardware_profile
-from synola.services.model_recommender import install_recommended_model, recommend_model
+from synola.services.model_recommender import (
+    get_installable_model,
+    get_model_options,
+    install_recommended_model,
+    recommend_model,
+)
 from synola.services.runtime_manager import runtime_status
 
 logger = logging.getLogger(__name__)
@@ -206,6 +216,9 @@ def model_recommendation(request):
             suggestion = recommend_model(profile)
             if not suggestion["installable"]:
                 return json_response({"error": "The recommendation is not available for download yet"}, status=409)
+            free_bytes = shutil.disk_usage(settings.DATA_DIR).free
+            if suggestion["model"]["size_bytes"] * 2 > free_bytes:
+                return json_response({"error": "Not enough free storage to install the recommendation"}, status=409)
             install_recommended_model(suggestion)
         except (OSError, RuntimeError, ValueError, KeyError, TypeError):
             logger.exception("Could not install recommended model")
@@ -213,6 +226,100 @@ def model_recommendation(request):
         return json_response({"status": "active", "recommendation": suggestion})
 
     return json_response({"error": "Use GET or POST request"}, status=405)
+
+
+@csrf_exempt
+def model_settings(request):
+    if request.method != "GET":
+        return json_response({"error": "Use GET request"}, status=405)
+
+    try:
+        hardware = get_hardware_profile()
+        disk = shutil.disk_usage(settings.DATA_DIR)
+        recommendation = recommend_model(hardware)
+        options = get_model_options(hardware, disk.free)
+    except (OSError, RuntimeError, ValueError, KeyError, TypeError):
+        logger.exception("Could not load model settings")
+        return json_response({"error": "Unable to load model settings"}, status=500)
+
+    installed_bytes = sum(
+        model.size_bytes for model in InstalledModel.objects.only("size_bytes")
+    )
+    installed_models = [
+        {
+            "id": model.id,
+            "catalog_id": model.sha_256,
+            "display_name": model.display_name,
+            "size_bytes": model.size_bytes,
+            "context_length": model.context_length,
+            "quantization": model.quantization,
+            "is_active": model.is_active,
+        }
+        for model in InstalledModel.objects.order_by("-is_active", "-installed_at")
+    ]
+    return json_response({
+        "hardware": hardware,
+        "device_class": recommendation["device_class"],
+        "storage": {
+            "installed_bytes": installed_bytes,
+            "free_bytes": disk.free,
+            "total_bytes": disk.total,
+        },
+        "models": options,
+        "installed_models": installed_models,
+    })
+
+
+@csrf_exempt
+def install_settings_model(request):
+    if request.method != "POST":
+        return json_response({"error": "Use POST request"}, status=405)
+
+    try:
+        body = json.loads(request.body.decode("utf-8"))
+        model_id = body["id"]
+        if not isinstance(model_id, str) or not model_id:
+            raise ValueError("A model id is required")
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError, UnicodeDecodeError):
+        return json_response({"error": "A model id is required"}, status=400)
+
+    try:
+        installed = InstalledModel.objects.filter(sha_256=model_id).first()
+        if installed:
+            if not installed.is_active:
+                activate_installed_model(installed.id)
+            return json_response({"status": "active", "id": model_id, "downloaded": True})
+
+        hardware = get_hardware_profile()
+        free_bytes = shutil.disk_usage(settings.DATA_DIR).free
+        model = get_installable_model(model_id, hardware, free_bytes)
+        if model is None:
+            return json_response(
+                {"error": "This model is unavailable for this device or lacks free storage"},
+                status=409,
+            )
+
+        install_recommended_model({"model": model})
+    except (OSError, RuntimeError, ValueError, KeyError, TypeError):
+        logger.exception("Could not install selected settings model %s", model_id)
+        return json_response({"error": "Unable to install selected model"}, status=500)
+
+    return json_response({"status": "active", "id": model_id})
+
+
+@csrf_exempt
+def current_model(request):
+    if request.method != "DELETE":
+        return json_response({"error": "Use DELETE request"}, status=405)
+
+    try:
+        removed = remove_active_model()
+    except Exception:
+        logger.exception("Could not remove active model")
+        return json_response({"error": "Unable to remove active model"}, status=500)
+    if removed is None:
+        return json_response({"error": "There is no active model"}, status=404)
+    return json_response({"status": "removed"})
 
 
 @csrf_exempt

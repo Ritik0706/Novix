@@ -26,28 +26,72 @@
 						<span>New Chat</span>
 					</button>
 				</div>
-				<section class="recommendation" aria-labelledby="recommendation-title">
-					<div class="recommendation-heading">
-						<span class="recommendation-kicker">SETUP</span>
-						<h4 id="recommendation-title">Model recommendation</h4>
-					</div>
-					<p id="recommendation-model">Checking this device...</p>
-					<p id="recommendation-reason" class="recommendation-reason"></p>
-					<button id="install-recommendation" type="button" disabled>Install recommended model</button>
-					<p id="recommendation-status" class="recommendation-status" role="status"></p>
-				</section>
-				<section class="model-management" aria-labelledby="model-management-title">
-					<div class="recommendation-heading">
-						<span class="recommendation-kicker">MODELS</span>
-						<h4 id="model-management-title">Installed models</h4>
-					</div>
-					<p id="model-storage" class="model-storage" role="status">Loading storage...</p>
-					<div id="model-list" class="model-list">
-						<p class="recommendation-status">Loading models...</p>
-					</div>
-				</section>
 				<div id="conversation-list"></div>
+				<button class="settings-button" id="open-settings" type="button">
+					<span aria-hidden="true">⚙</span>
+					<span>Model settings</span>
+				</button>
 			</div>
+
+			<section class="settings-scrim" id="settings-scrim" aria-hidden="true">
+				<div class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+					<header class="settings-header">
+						<div>
+							<h2 id="settings-title">Model settings</h2>
+							<p>Models are matched to this device.</p>
+						</div>
+						<button class="settings-icon-button" id="close-settings" type="button" aria-label="Close settings">×</button>
+					</header>
+					<div class="settings-body">
+						<section aria-labelledby="device-heading">
+							<h3 id="device-heading">Your device</h3>
+							<div class="settings-specs">
+								<div class="settings-spec">
+									<small>Processor</small>
+									<strong id="settings-cpu">Detecting…</strong>
+									<span>CPU cores</span>
+								</div>
+								<div class="settings-spec">
+									<small>Memory</small>
+									<strong id="settings-ram">—</strong>
+									<span>RAM</span>
+								</div>
+								<div class="settings-spec">
+									<small>Graphics</small>
+									<strong id="settings-vram">—</strong>
+									<span id="settings-gpu-name">VRAM</span>
+								</div>
+								<div class="settings-spec">
+									<small>Free storage</small>
+									<strong id="settings-free-storage">—</strong>
+									<span id="settings-total-storage">of —</span>
+									<div class="settings-meter" aria-hidden="true"><i id="settings-storage-meter"></i></div>
+								</div>
+							</div>
+							<p class="settings-device-mode" id="settings-device-mode">Loading device fit…</p>
+						</section>
+
+						<section aria-labelledby="available-models-heading">
+							<h3 id="available-models-heading">Models for this device</h3>
+							<p class="settings-rule">Choose a smaller model for faster replies or less storage. Downloaded models can be switched without downloading again.</p>
+							<ul class="settings-model-list" id="settings-model-list">
+								<li class="settings-empty">Loading recommended models…</li>
+							</ul>
+						</section>
+						<p class="settings-status" id="settings-status" role="status" aria-live="polite"></p>
+					</div>
+				</div>
+				<div class="settings-confirm" id="settings-confirm" role="alertdialog" aria-modal="true" aria-labelledby="settings-confirm-title" aria-describedby="settings-confirm-message" aria-hidden="true">
+					<div class="settings-confirm-card">
+						<h3 id="settings-confirm-title"></h3>
+						<p id="settings-confirm-message"></p>
+						<div>
+							<button class="settings-action" id="settings-confirm-cancel" type="button">Cancel</button>
+							<button class="settings-action primary" id="settings-confirm-yes" type="button"></button>
+						</div>
+					</div>
+				</div>
+			</section>
 
 			<!-- Chat Content -->
 			<div class="chat-area">

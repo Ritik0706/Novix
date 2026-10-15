@@ -4,57 +4,14 @@ const imageInput = document.getElementById("image-input");
 
 const API_URL = "http://127.0.0.1:8000/chat/";
 const CONVERSATION_URL = "http://127.0.0.1:8000/conversations/";
-const RECOMMENDATION_URL = "http://127.0.0.1:8000/models/recommendation/";
+const MODEL_SETTINGS_URL = "http://127.0.0.1:8000/models/settings/";
+const INSTALL_MODEL_URL = "http://127.0.0.1:8000/models/settings/install/";
 const INSTALLED_MODELS_URL = "http://127.0.0.1:8000/models/installed/";
-const MODEL_STORAGE_URL = "http://127.0.0.1:8000/models/storage/";
+const CURRENT_MODEL_URL = "http://127.0.0.1:8000/models/current/";
 let currentConversation = null;
-
-async function loadRecommendation() {
-    const model = document.getElementById("recommendation-model");
-    const reason = document.getElementById("recommendation-reason");
-    const installButton = document.getElementById("install-recommendation");
-    const status = document.getElementById("recommendation-status");
-
-    try {
-        const response = await fetch(RECOMMENDATION_URL);
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Recommendation unavailable");
-
-        const recommendation = data.recommendation;
-        model.textContent = recommendation.model.model;
-        reason.textContent = recommendation.reason;
-        installButton.disabled = !recommendation.installable;
-        status.textContent = recommendation.installable
-            ? "Ready to install"
-            : "Download details are not configured yet";
-    } catch (error) {
-        model.textContent = "Recommendation unavailable";
-        reason.textContent = error.message;
-        status.textContent = "";
-    }
-}
-
-async function installRecommendation() {
-    const button = document.getElementById("install-recommendation");
-    const status = document.getElementById("recommendation-status");
-    button.disabled = true;
-    status.textContent = "Installing...";
-
-    try {
-        const response = await fetch(RECOMMENDATION_URL, { method: "POST" });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Installation failed");
-        status.textContent = `Active: ${data.recommendation.model.model}`;
-        await refreshModelsAndStorage();
-    } catch (error) {
-        status.textContent = error.message;
-        button.disabled = false;
-    }
-}
-
-// =====================================================
-// MODEL MANAGEMENT
-// =====================================================
+let modelSettings = null;
+let settingsOperationInProgress = false;
+let pendingSettingsAction = null;
 
 function formatBytes(bytes) {
     if (typeof bytes !== "number" || Number.isNaN(bytes)) return "-";
@@ -71,173 +28,422 @@ function formatBytes(bytes) {
     return `${value.toFixed(decimals)} ${units[unitIndex]}`;
 }
 
-async function loadStorage() {
-    const storageElement = document.getElementById("model-storage");
-    if (!storageElement) return;
-
-    try {
-        const response = await fetch(MODEL_STORAGE_URL);
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Storage info unavailable");
-
-        storageElement.textContent = `${formatBytes(data.installed_bytes)} used of ${formatBytes(data.total_bytes)} - ${formatBytes(data.free_bytes)} free`;
-    } catch (error) {
-        storageElement.textContent = error.message || "Storage info unavailable";
-    }
+function formatContextLength(contextLength) {
+    const tokens = Number.parseInt(contextLength, 10);
+    if (!Number.isFinite(tokens) || tokens <= 0) return "";
+    return `${tokens >= 1000 ? `${Math.floor(tokens / 1000)}K` : tokens} context`;
 }
 
-async function loadModels() {
-    const list = document.getElementById("model-list");
-    if (!list) return null;
-
-    list.innerHTML = `<p class="recommendation-status">Loading models...</p>`;
-
-    try {
-        const response = await fetch(INSTALLED_MODELS_URL);
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Failed to load models");
-
-        if (!Array.isArray(data.models)) throw new Error("Invalid models response");
-        const models = data.models;
-        renderModels(models);
-        return models;
-    } catch (error) {
-        list.innerHTML = `<p class="recommendation-status">${error.message || "Failed to load models"}</p>`;
-        return null;
-    }
+function makeSettingsTag(label, active = false) {
+    const tag = document.createElement("span");
+    tag.className = `settings-tag${active ? " active" : ""}`;
+    tag.textContent = label;
+    return tag;
 }
 
-async function refreshModelsAndStorage() {
-    const [models] = await Promise.all([loadModels(), loadStorage()]);
-    if (models && models.length === 0) {
-        document.getElementById("card").classList.add("open");
-    }
+function getActiveModel() {
+    const installed = modelSettings?.installed_models.find((model) => model.is_active);
+    return installed
+        ? { id: installed.catalog_id, display_name: installed.display_name }
+        : null;
 }
 
-function renderModels(models) {
-    const list = document.getElementById("model-list");
-    if (!list) return;
-    list.innerHTML = "";
+function renderDeviceSettings(data) {
+    const { hardware, storage } = data;
+    document.getElementById("settings-cpu").textContent = hardware.cpu_cores ?? "—";
+    document.getElementById("settings-ram").textContent = `${hardware.ram_gb ?? "—"} GB`;
+    document.getElementById("settings-vram").textContent = hardware.vram_gb
+        ? `${Number(hardware.vram_gb).toFixed(1)} GB`
+        : "None";
+    document.getElementById("settings-gpu-name").textContent = hardware.gpu_name || "No dedicated GPU detected";
+    document.getElementById("settings-free-storage").textContent = formatBytes(storage.free_bytes);
+    document.getElementById("settings-total-storage").textContent = `of ${formatBytes(storage.total_bytes)}`;
 
-    if (!models.length) {
-        list.innerHTML = `<p class="recommendation-status">No models installed yet.</p>`;
+    const usedRatio = storage.total_bytes > 0
+        ? (storage.total_bytes - storage.free_bytes) / storage.total_bytes
+        : 0;
+    document.getElementById("settings-storage-meter").style.width =
+        `${Math.max(0, Math.min(100, usedRatio * 100))}%`;
+
+    const fitModes = new Set(data.models.map((model) => model.fit_mode));
+    const fitDescription = fitModes.has("hybrid")
+        ? "This device can run models with CPU and GPU memory together."
+        : fitModes.has("gpu")
+            ? "Recommended models can fit within available GPU memory."
+            : hardware.vram_gb
+                ? "Recommended models use CPU memory; available GPU memory is limited."
+                : "Recommended models are selected to run with CPU memory on this device.";
+    document.getElementById("settings-device-mode").textContent =
+        `${data.device_class}. ${fitDescription}`;
+}
+
+function renderSettingsModels(models, currentModel, installedModels) {
+    const list = document.getElementById("settings-model-list");
+    list.replaceChildren();
+    const options = models.slice();
+    const catalogIds = new Set(models.map((model) => model.id));
+    installedModels.forEach((installed) => {
+        if (installed.catalog_id && catalogIds.has(installed.catalog_id)) return;
+        options.push({
+            id: installed.catalog_id || `installed-${installed.id}`,
+            display_name: installed.display_name,
+            description: "Downloaded on this device. Switching to it does not download it again.",
+            size_bytes: installed.size_bytes,
+            quantization: installed.quantization,
+            context_length: installed.context_length,
+            fit_mode: "downloaded",
+            recommended: false,
+            installable: false,
+            installed_only: true,
+            installed_record_id: installed.id,
+        });
+    });
+
+    if (!options.length) {
+        const empty = document.createElement("li");
+        empty.className = "settings-empty";
+        empty.textContent = "No models currently fit this device.";
+        list.appendChild(empty);
         return;
     }
 
-    models.forEach((model) => {
-        const item = document.createElement("div");
-        item.className = `model-item${model.is_active ? " active" : ""}`;
+    options.forEach((model) => {
+        const installedModel = installedModels.find((installed) =>
+            model.installed_only
+                ? installed.id === model.installed_record_id
+                : installed.catalog_id === model.id
+        );
+        const isActive = Boolean(installedModel && installedModel.is_active) ||
+            Boolean(currentModel && currentModel.id === model.id);
+        const item = document.createElement("li");
+        item.className = `settings-model${model.recommended ? " recommended" : ""}`;
 
         const info = document.createElement("div");
-        info.className = "model-item-info";
-
-        const name = document.createElement("span");
-        name.className = "model-item-name";
-        name.textContent = model.display_name;
-        info.appendChild(name);
-
-        const metaParts = [];
-        if (model.quantization) metaParts.push(model.quantization);
-        if (model.context_length) metaParts.push(`${model.context_length} ctx`);
-        if (model.capabilities && model.capabilities.vision) metaParts.push("vision");
-
-        if (metaParts.length) {
-            const meta = document.createElement("span");
-            meta.className = "model-item-meta";
-            meta.textContent = metaParts.join(" - ");
-            info.appendChild(meta);
+        info.className = "settings-model-info";
+        const heading = document.createElement("h4");
+        heading.textContent = model.display_name;
+        if (model.recommended) {
+            const recommended = document.createElement("span");
+            recommended.className = "settings-recommended";
+            recommended.textContent = " (Recommended)";
+            heading.appendChild(recommended);
         }
+        info.appendChild(heading);
+
+        const description = document.createElement("p");
+        description.textContent = model.description;
+        info.appendChild(description);
+
+        const tags = document.createElement("div");
+        tags.className = "settings-tags";
+        tags.appendChild(makeSettingsTag(formatBytes(model.size_bytes)));
+        if (model.quantization) tags.appendChild(makeSettingsTag(model.quantization));
+        const contextLength = formatContextLength(model.context_length);
+        if (contextLength) tags.appendChild(makeSettingsTag(contextLength));
+        if (model.speed) tags.appendChild(makeSettingsTag(model.speed));
+        if (model.fit_mode === "gpu") tags.appendChild(makeSettingsTag("GPU"));
+        else if (model.fit_mode === "hybrid") tags.appendChild(makeSettingsTag("CPU + GPU"));
+        else if (model.fit_mode === "cpu") tags.appendChild(makeSettingsTag("CPU"));
+        else if (model.fit_mode === "downloaded") tags.appendChild(makeSettingsTag("Downloaded"));
+        if (model.vision_support) tags.appendChild(makeSettingsTag("Vision"));
+        if (isActive) {
+            tags.appendChild(makeSettingsTag("Active", true));
+        }
+        info.appendChild(tags);
+        item.appendChild(info);
 
         const actions = document.createElement("div");
-        actions.className = "model-item-actions";
+        actions.className = "settings-model-actions";
+        if (installedModel) {
+            if (!isActive) {
+                const button = document.createElement("button");
+                button.className = "settings-action primary";
+                button.type = "button";
+                button.dataset.installedId = installedModel.id;
+                button.dataset.installedAction = "activate";
+                button.textContent = "Switch";
+                button.disabled = settingsOperationInProgress;
+                actions.appendChild(button);
+            }
 
-        const status = document.createElement("p");
-        status.className = "model-item-status";
-
-        if (model.is_active) {
-            const badge = document.createElement("span");
-            badge.className = "model-active-badge";
-            badge.textContent = "Active";
-            actions.appendChild(badge);
+            const removeButton = document.createElement("button");
+            removeButton.className = "settings-action danger";
+            removeButton.type = "button";
+            removeButton.disabled = settingsOperationInProgress;
+            removeButton.dataset.installedId = installedModel.id;
+            removeButton.dataset.installedAction = isActive ? "remove" : "delete";
+            removeButton.textContent = isActive ? "Remove" : "Delete";
+            actions.appendChild(removeButton);
         } else {
-            const activateButton = document.createElement("button");
-            activateButton.className = "model-activate-btn";
-            activateButton.type = "button";
-            activateButton.textContent = "Activate";
-
-            const deleteButton = document.createElement("button");
-            deleteButton.className = "model-delete-btn";
-            deleteButton.type = "button";
-            deleteButton.textContent = "Delete";
-
-            activateButton.onclick = () => activateModel(model.id, activateButton, deleteButton, status);
-            deleteButton.onclick = () => deleteModel(model.id, activateButton, deleteButton, status);
-
-            actions.appendChild(activateButton);
-            actions.appendChild(deleteButton);
+            const button = document.createElement("button");
+            button.className = `settings-action${model.recommended ? " primary" : ""}`;
+            button.type = "button";
+            button.dataset.modelId = model.id;
+            button.textContent = model.installable
+                ? currentModel ? "Download and replace" : "Download"
+                : "Not enough storage";
+            button.disabled = settingsOperationInProgress || !model.installable;
+            actions.appendChild(button);
         }
-
-        item.appendChild(info);
         item.appendChild(actions);
-        item.appendChild(status);
         list.appendChild(item);
     });
 }
 
-async function activateModel(id, activateButton, deleteButton, status) {
-    activateButton.disabled = true;
-    deleteButton.disabled = true;
-    status.className = "model-item-status";
-    status.textContent = "Activating...";
+async function loadModelSettings() {
+    const response = await fetch(MODEL_SETTINGS_URL);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Unable to load model settings");
+    if (!data.hardware || !data.storage || !Array.isArray(data.models) ||
+        !Array.isArray(data.installed_models)) {
+        throw new Error("Invalid model settings response");
+    }
 
+    modelSettings = data;
+    renderDeviceSettings(data);
+    renderSettingsModels(data.models, getActiveModel(), data.installed_models);
+    return data;
+}
+
+function setSettingsStatus(message, type = "") {
+    const status = document.getElementById("settings-status");
+    status.className = `settings-status${type ? ` ${type}` : ""}`;
+    status.textContent = message;
+}
+
+function openSettingsPanel() {
+    document.getElementById("card").classList.remove("open");
+    const scrim = document.getElementById("settings-scrim");
+    scrim.classList.add("open");
+    scrim.setAttribute("aria-hidden", "false");
+    document.getElementById("close-settings").focus();
+}
+
+function closeSettingsPanel() {
+    closeSettingsConfirmation();
+    document.getElementById("card").classList.add("open");
+    const scrim = document.getElementById("settings-scrim");
+    scrim.classList.remove("open");
+    scrim.setAttribute("aria-hidden", "true");
+    document.getElementById("open-settings").focus();
+}
+
+function showSettingsConfirmation(title, message, confirmText, action, danger = false) {
+    document.getElementById("settings-confirm-title").textContent = title;
+    document.getElementById("settings-confirm-message").textContent = message;
+    const confirmButton = document.getElementById("settings-confirm-yes");
+    confirmButton.textContent = confirmText;
+    confirmButton.classList.toggle("danger", danger);
+    pendingSettingsAction = action;
+    const dialog = document.getElementById("settings-confirm");
+    dialog.classList.add("open");
+    dialog.setAttribute("aria-hidden", "false");
+    confirmButton.focus();
+}
+
+function closeSettingsConfirmation() {
+    const dialog = document.getElementById("settings-confirm");
+    dialog.classList.remove("open");
+    dialog.setAttribute("aria-hidden", "true");
+    pendingSettingsAction = null;
+}
+
+async function installSettingsModel(model) {
+    settingsOperationInProgress = true;
+    setSettingsStatus(`Downloading and installing ${model.display_name}…`);
+    renderSettingsModels(modelSettings.models, getActiveModel(), modelSettings.installed_models);
+    try {
+        const response = await fetch(INSTALL_MODEL_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: model.id }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Model installation failed");
+        await loadModelSettings();
+        setSettingsStatus(`${model.display_name} is now active.`, "success");
+    } catch (error) {
+        setSettingsStatus(error.message || "Model installation failed", "error");
+    } finally {
+        settingsOperationInProgress = false;
+        if (modelSettings) {
+            renderSettingsModels(
+                modelSettings.models,
+                getActiveModel(),
+                modelSettings.installed_models,
+            );
+        }
+    }
+}
+
+function confirmRemoveModel(model) {
+    showSettingsConfirmation(
+        `Remove ${model.display_name}?`,
+        "The model file will be deleted. You will need to install a model before chatting again.",
+        "Remove model",
+        removeCurrentModel,
+        true,
+    );
+}
+
+function confirmSwitchInstalledModel(model) {
+    showSettingsConfirmation(
+        `Switch to ${model.display_name}?`,
+        "This model is already downloaded, so it will be activated without another download.",
+        "Switch model",
+        () => activateDownloadedModel(model),
+    );
+}
+
+async function activateDownloadedModel(model) {
+    settingsOperationInProgress = true;
+    setSettingsStatus(`Switching to ${model.display_name}…`);
     try {
         const response = await fetch(INSTALLED_MODELS_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id }),
+            body: JSON.stringify({ id: model.id }),
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || "Failed to activate model");
-
-        status.classList.add("model-item-status-success");
-        status.textContent = "Model activated";
-        await refreshModelsAndStorage();
+        if (!response.ok) throw new Error(data.error || "Unable to switch models");
+        await loadModelSettings();
+        setSettingsStatus(`${model.display_name} is now active.`, "success");
     } catch (error) {
-        status.classList.add("model-item-status-error");
-        status.textContent = error.message || "Failed to activate model";
-        activateButton.disabled = false;
-        deleteButton.disabled = false;
+        setSettingsStatus(error.message || "Unable to switch models", "error");
+    } finally {
+        settingsOperationInProgress = false;
+        if (modelSettings) {
+            renderSettingsModels(
+                modelSettings.models,
+                getActiveModel(),
+                modelSettings.installed_models,
+            );
+        }
     }
 }
 
-async function deleteModel(id, activateButton, deleteButton, status) {
-    activateButton.disabled = true;
-    deleteButton.disabled = true;
-    status.className = "model-item-status";
-    status.textContent = "Deleting...";
+function confirmDeleteDownloadedModel(model) {
+    showSettingsConfirmation(
+        `Delete ${model.display_name}?`,
+        "The downloaded model file will be deleted from this device.",
+        "Delete model",
+        () => deleteDownloadedModel(model),
+        true,
+    );
+}
 
+async function deleteDownloadedModel(model) {
+    settingsOperationInProgress = true;
+    setSettingsStatus(`Deleting ${model.display_name}…`);
     try {
-        const response = await fetch(`${INSTALLED_MODELS_URL}${id}/`, {
+        const response = await fetch(`${INSTALLED_MODELS_URL}${model.id}/`, {
             method: "DELETE",
         });
-
-        if (response.status === 409) throw new Error("Active model cannot be deleted");
-        if (response.status === 404) throw new Error("Model not found");
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            throw new Error(data.error || "Failed to delete model");
-        }
-
-        status.classList.add("model-item-status-success");
-        status.textContent = "Model deleted";
-        await refreshModelsAndStorage();
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Unable to delete downloaded model");
+        await loadModelSettings();
+        setSettingsStatus(`${model.display_name} was deleted.`, "success");
     } catch (error) {
-        status.classList.add("model-item-status-error");
-        status.textContent = error.message || "Failed to delete model";
-        activateButton.disabled = false;
-        deleteButton.disabled = false;
+        setSettingsStatus(error.message || "Unable to delete downloaded model", "error");
+    } finally {
+        settingsOperationInProgress = false;
+        if (modelSettings) {
+            renderSettingsModels(
+                modelSettings.models,
+                getActiveModel(),
+                modelSettings.installed_models,
+            );
+        }
     }
 }
+
+async function removeCurrentModel() {
+    settingsOperationInProgress = true;
+    setSettingsStatus("Removing the active model…");
+    try {
+        const response = await fetch(CURRENT_MODEL_URL, { method: "DELETE" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Model removal failed");
+        await loadModelSettings();
+        setSettingsStatus("Active model removed.", "success");
+    } catch (error) {
+        setSettingsStatus(error.message || "Model removal failed", "error");
+    } finally {
+        settingsOperationInProgress = false;
+        if (modelSettings) {
+            renderSettingsModels(
+                modelSettings.models,
+                getActiveModel(),
+                modelSettings.installed_models,
+            );
+        }
+    }
+}
+
+document.getElementById("open-settings").addEventListener("click", async () => {
+    openSettingsPanel();
+    if (!modelSettings) {
+        setSettingsStatus("Loading settings…");
+        try {
+            await loadModelSettings();
+            setSettingsStatus("");
+        } catch (error) {
+            setSettingsStatus(error.message || "Unable to load model settings", "error");
+        }
+    }
+});
+document.getElementById("close-settings").addEventListener("click", closeSettingsPanel);
+document.getElementById("settings-scrim").addEventListener("click", (event) => {
+    if (event.target.id === "settings-scrim") closeSettingsPanel();
+});
+document.getElementById("settings-confirm-cancel").addEventListener("click", closeSettingsConfirmation);
+document.getElementById("settings-confirm-yes").addEventListener("click", async () => {
+    const action = pendingSettingsAction;
+    closeSettingsConfirmation();
+    if (action) await action();
+});
+document.getElementById("settings-model-list").addEventListener("click", (event) => {
+    const installedButton = event.target.closest("[data-installed-action]");
+    if (installedButton && modelSettings && !settingsOperationInProgress) {
+        const installedModel = modelSettings.installed_models.find(
+            (model) => String(model.id) === installedButton.dataset.installedId,
+        );
+        if (!installedModel) return;
+        if (installedButton.dataset.installedAction === "activate") {
+            confirmSwitchInstalledModel(installedModel);
+        } else if (installedButton.dataset.installedAction === "delete") {
+            confirmDeleteDownloadedModel(installedModel);
+        } else if (installedButton.dataset.installedAction === "remove") {
+            confirmRemoveModel(installedModel);
+        }
+        return;
+    }
+
+    const button = event.target.closest("[data-model-id]");
+    if (!button || !modelSettings || settingsOperationInProgress) return;
+    const model = modelSettings.models.find((item) => item.id === button.dataset.modelId);
+    if (!model || !model.installable) return;
+
+    const activeModel = getActiveModel();
+    if (activeModel) {
+        showSettingsConfirmation(
+            `Replace ${activeModel.display_name}?`,
+            `${model.display_name} will be downloaded and activated. The current model will stop running.`,
+            "Install and replace",
+            () => installSettingsModel(model),
+        );
+    } else {
+        installSettingsModel(model);
+    }
+});
+document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (document.getElementById("settings-confirm").classList.contains("open")) {
+        closeSettingsConfirmation();
+    } else if (document.getElementById("settings-scrim").classList.contains("open")) {
+        closeSettingsPanel();
+    }
+});
 
 async function createConversation() {
     const response = await fetch(CONVERSATION_URL, {
@@ -383,7 +589,6 @@ async function submitMessage() {
 }
 
 document.getElementById("send").onclick = submitMessage;
-document.getElementById("install-recommendation").onclick = installRecommendation;
 imageInput.onchange = () => {
     if (imageInput.files[0]) {
         imageInput.title = imageInput.files[0].name;
@@ -737,5 +942,11 @@ document.getElementById("closeBtn").addEventListener("click", () => {
 });
 
 initConversations();
-loadRecommendation();
-refreshModelsAndStorage();
+loadModelSettings()
+    .then((data) => {
+        if (!data.installed_models.some((model) => model.is_active)) openSettingsPanel();
+    })
+    .catch((error) => {
+        openSettingsPanel();
+        setSettingsStatus(error.message || "Unable to load model settings", "error");
+    });

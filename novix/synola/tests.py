@@ -12,7 +12,12 @@ from synola.models import Conversation, ConversationSummary, InstalledModel, Mes
 from synola.services import ai
 from synola.services.context_manager import build_context
 from synola.services.inference_engine import InferenceEngine
-from synola.services.model_recommender import _fit_mode, _load_catalog
+from synola.services.model_manager import remove_active_model
+from synola.services.model_recommender import (
+    _fit_mode,
+    _load_catalog,
+    get_model_options,
+)
 from synola.services.runtime_manager import (
     RuntimeDependencyError,
     RuntimeExecutableError,
@@ -473,6 +478,195 @@ class ModelFitTests(TestCase):
         self.assertTrue(models)
         self.assertTrue(all(model["download_url"].lower().endswith(".gguf") for model in models))
 
+    def test_model_options_are_fitted_and_recommended_model_is_first(self):
+        options = get_model_options(
+            {"ram_gb": 8, "vram_gb": 0, "gpu_name": None},
+            free_bytes=100 * 1024 ** 3,
+        )
+
+        self.assertTrue(options)
+        self.assertTrue(options[0]["recommended"])
+        self.assertTrue(all(option["installable"] for option in options))
+        self.assertEqual(
+            options,
+            sorted(options, key=lambda option: option["size_bytes"], reverse=True),
+        )
+
+    def test_model_options_recommend_an_installable_model_when_storage_is_limited(self):
+        options = get_model_options(
+            {"ram_gb": 8, "vram_gb": 0, "gpu_name": None},
+            free_bytes=1_000_000_000,
+        )
+
+        installable = [option for option in options if option["installable"]]
+        self.assertEqual(len(installable), 1)
+        self.assertTrue(installable[0]["recommended"])
+
+
+class ModelSettingsApiTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.hardware = {
+            "cpu_cores": 8,
+            "ram_gb": 16,
+            "vram_gb": 4,
+            "gpu_name": "Test GPU",
+            "cuda_available": True,
+            "vulkan_available": False,
+        }
+
+    def test_model_settings_includes_hardware_storage_and_recommendations(self):
+        with (
+            patch("synola.views.get_hardware_profile", return_value=self.hardware),
+            patch(
+                "synola.views.shutil.disk_usage",
+                return_value=SimpleNamespace(free=100, total=1000),
+            ),
+            patch(
+                "synola.views.recommend_model",
+                return_value={"device_class": "Test device"},
+            ),
+            patch(
+                "synola.views.get_model_options",
+                return_value=[{"id": "recommended", "recommended": True}],
+            ),
+        ):
+            response = self.client.get("/models/settings/")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["hardware"], self.hardware)
+        self.assertEqual(data["device_class"], "Test device")
+        self.assertEqual(data["storage"]["free_bytes"], 100)
+        self.assertNotIn("current_model", data)
+        self.assertTrue(data["models"][0]["recommended"])
+        self.assertEqual(data["installed_models"], [])
+
+    @patch("synola.views.activate_installed_model")
+    def test_installed_model_is_switched_without_catalog_redownload(self, activate):
+        model = InstalledModel.objects.create(
+            display_name="Downloaded smaller model",
+            source_url="https://huggingface.co/test/small.gguf",
+            sha_256="downloaded-model",
+            size_bytes=10,
+        )
+
+        response = self.client.post(
+            "/models/settings/install/",
+            data={"id": "downloaded-model"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["downloaded"])
+        activate.assert_called_once_with(model.id)
+
+    def test_model_settings_lists_downloaded_models_for_switching(self):
+        InstalledModel.objects.create(
+            display_name="Downloaded smaller model",
+            source_url="https://huggingface.co/test/small.gguf",
+            sha_256="downloaded-model",
+            size_bytes=10,
+        )
+        with (
+            patch("synola.views.get_hardware_profile", return_value=self.hardware),
+            patch(
+                "synola.views.shutil.disk_usage",
+                return_value=SimpleNamespace(free=100, total=1000),
+            ),
+            patch(
+                "synola.views.recommend_model",
+                return_value={"device_class": "Test device"},
+            ),
+            patch(
+                "synola.views.get_model_options",
+                return_value=[{"id": "recommended", "recommended": True}],
+            ),
+        ):
+            response = self.client.get("/models/settings/")
+
+        self.assertEqual(response.status_code, 200)
+        downloaded = response.json()["installed_models"]
+        self.assertEqual(len(downloaded), 1)
+        self.assertEqual(downloaded[0]["catalog_id"], "downloaded-model")
+        self.assertFalse(downloaded[0]["is_active"])
+
+    @patch("synola.views.install_recommended_model")
+    @patch("synola.views.get_installable_model", return_value=None)
+    @patch("synola.views.get_hardware_profile")
+    @patch(
+        "synola.views.shutil.disk_usage",
+        return_value=SimpleNamespace(free=100, total=1000),
+    )
+    def test_install_rejects_model_that_no_longer_fits(
+        self,
+        disk_usage,
+        hardware_profile,
+        get_installable_model_mock,
+        install_model,
+    ):
+        hardware_profile.return_value = self.hardware
+        response = self.client.post(
+            "/models/settings/install/",
+            data={"id": "not-available"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 409)
+        get_installable_model_mock.assert_called_once_with(
+            "not-available", self.hardware, 100,
+        )
+        install_model.assert_not_called()
+
+    @patch("synola.views.install_recommended_model")
+    @patch("synola.views.get_installable_model")
+    @patch("synola.views.get_hardware_profile")
+    @patch(
+        "synola.views.shutil.disk_usage",
+        return_value=SimpleNamespace(free=100, total=1000),
+    )
+    def test_install_uses_server_catalog_metadata(
+        self,
+        disk_usage,
+        hardware_profile,
+        get_installable_model_mock,
+        install_model,
+    ):
+        catalog_model = {
+            "model": "Test model",
+            "sha_256": "verified-id",
+            "download_url": "https://huggingface.co/test/model.gguf",
+            "size_bytes": 10,
+        }
+        hardware_profile.return_value = self.hardware
+        get_installable_model_mock.return_value = catalog_model
+
+        response = self.client.post(
+            "/models/settings/install/",
+            data={"id": "verified-id"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["id"], "verified-id")
+        install_model.assert_called_once_with({"model": catalog_model})
+
+    @patch("synola.views.remove_active_model")
+    def test_current_model_delete_endpoint_uses_model_manager(self, remove_model):
+        model = InstalledModel.objects.create(
+            display_name="Current model",
+            source_url="https://huggingface.co/test/model.gguf",
+            size_bytes=10,
+            is_active=True,
+        )
+        remove_model.return_value = model
+
+        response = self.client.delete("/models/current/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "removed")
+        remove_model.assert_called_once_with()
+
 
 class InstalledModelApiTests(TestCase):
     def setUp(self):
@@ -525,6 +719,30 @@ class InstalledModelApiTests(TestCase):
         self.assertEqual(response.json()["installed_bytes"], 10)
         self.assertGreater(response.json()["free_bytes"], 0)
         self.assertGreater(response.json()["total_bytes"], 0)
+
+    @patch("synola.services.model_manager.engine")
+    def test_removing_active_model_deletes_model_files_and_record(self, inference_engine):
+        with TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            active_path = root / "active_model.gguf"
+            installed_path = root / "installed" / "model.gguf"
+            installed_path.parent.mkdir()
+            active_path.write_bytes(b"active")
+            installed_path.write_bytes(b"installed")
+            self.model.local_path = str(installed_path)
+            self.model.is_active = True
+            self.model.save(update_fields=["local_path", "is_active"])
+            model_id = self.model.pk
+
+            with patch("synola.services.model_manager.ACTIVE_PATH", active_path):
+                removed = remove_active_model()
+
+            self.assertEqual(removed.display_name, self.model.display_name)
+            self.assertFalse(active_path.exists())
+            self.assertFalse(installed_path.exists())
+            self.assertFalse(InstalledModel.objects.filter(pk=model_id).exists())
+            inference_engine.stop.assert_called_once_with()
+            inference_engine.start.assert_not_called()
 
 
 class HardwareProbeTests(TestCase):
