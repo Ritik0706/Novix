@@ -12,13 +12,17 @@ logger = logging.getLogger(__name__)
 CATALOG_PATH = Path(__file__).resolve().parent / "models.json"
 
 
-def install_recommended_model(suggestion: dict):
+def install_recommended_model(suggestion: dict, progress_cb=None):
     m = suggestion["model"]
     if not m.get("download_url") or not m.get("size_bytes"):
         raise RuntimeError("The recommended model has no verified download metadata")
     download_model(m["download_url"], STAGING_PATH, expected_sha_256=m.get("sha_256") or None,
-                    expected_size=m["size_bytes"], max_retries=3)
+                    expected_size=m["size_bytes"], progress_cb=progress_cb, max_retries=3)
+    if progress_cb:
+        progress_cb(m["size_bytes"], m["size_bytes"], "finishing")
     inspected = inspect_gguf(STAGING_PATH)
+    if progress_cb:
+        progress_cb(m["size_bytes"], m["size_bytes"], "finishing")
     metadata = {
         "display_name": m["model"],
         "source_url": m["download_url"],

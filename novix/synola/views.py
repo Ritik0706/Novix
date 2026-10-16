@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import shutil
+from threading import Condition
 
 from django.conf import settings
 from django.http import JsonResponse
@@ -11,7 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 from synola.models import Conversation, InstalledModel, Message
 from synola.services.ai import generate, generate_summary
 from synola.services.context_manager import build_context, create_or_update_summary
-from synola.services.model_downloader import download_model
+from synola.services.model_downloader import DownloadCancelled, download_model
 from synola.services.model_manager import (
     STAGING_PATH,
     activate_installed_model,
@@ -28,6 +29,65 @@ from synola.services.model_recommender import (
 from synola.services.runtime_manager import runtime_status
 
 logger = logging.getLogger(__name__)
+_download_progress_lock = Condition()
+_download_progress = {
+    "status": "idle",
+    "downloaded": 0,
+    "total": 0,
+    "error": "",
+}
+
+
+def _set_download_progress(**updates):
+    with _download_progress_lock:
+        if (
+            _download_progress["status"] in {"paused", "cancelling"}
+            and updates.get("status") in {"preparing", "downloading", "finishing"}
+        ):
+            updates.pop("status")
+        _download_progress.update(updates)
+        _download_progress_lock.notify_all()
+
+
+def model_install_progress(request):
+    if request.method != "GET":
+        return json_response({"error": "Use GET request"}, status=405)
+    with _download_progress_lock:
+        progress = dict(_download_progress)
+    return json_response(progress)
+
+
+@csrf_exempt
+def model_install_control(request):
+    if request.method != "POST":
+        return json_response({"error": "Use POST request"}, status=405)
+
+    try:
+        body = json.loads(request.body.decode("utf-8"))
+        action = body["action"]
+        if action not in {"pause", "resume", "cancel"}:
+            raise ValueError
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError, UnicodeDecodeError):
+        return json_response({"error": "A valid download action is required"}, status=400)
+
+    active_states = {"preparing", "downloading", "paused", "finishing", "cancelling"}
+    with _download_progress_lock:
+        status = _download_progress["status"]
+        if status not in active_states:
+            return json_response({"error": "There is no active model download"}, status=409)
+
+        if action == "pause":
+            if status != "paused":
+                _download_progress["status"] = "paused"
+        elif action == "resume":
+            if status == "paused":
+                _download_progress["status"] = "downloading"
+        else:
+            _download_progress["status"] = "cancelling"
+        _download_progress_lock.notify_all()
+        progress = dict(_download_progress)
+
+    return json_response(progress)
 
 
 def json_response(data, status=200):
@@ -283,26 +343,73 @@ def install_settings_model(request):
     except (KeyError, TypeError, ValueError, json.JSONDecodeError, UnicodeDecodeError):
         return json_response({"error": "A model id is required"}, status=400)
 
+    with _download_progress_lock:
+        if _download_progress["status"] in {
+            "preparing", "downloading", "paused", "finishing", "cancelling",
+        }:
+            return json_response({"error": "A model download is already in progress"}, status=409)
+        _download_progress.update(
+            status="preparing",
+            downloaded=0,
+            total=0,
+            error="",
+        )
+        _download_progress_lock.notify_all()
+
     try:
         installed = InstalledModel.objects.filter(sha_256=model_id).first()
         if installed:
             if not installed.is_active:
                 activate_installed_model(installed.id)
+            _set_download_progress(status="completed", error="")
             return json_response({"status": "active", "id": model_id, "downloaded": True})
 
         hardware = get_hardware_profile()
         free_bytes = shutil.disk_usage(settings.DATA_DIR).free
         model = get_installable_model(model_id, hardware, free_bytes)
         if model is None:
+            message = "This model is unavailable for this device or lacks free storage"
+            _set_download_progress(status="error", error=message)
             return json_response(
-                {"error": "This model is unavailable for this device or lacks free storage"},
+                {"error": message},
                 status=409,
             )
 
-        install_recommended_model({"model": model})
-    except (OSError, RuntimeError, ValueError, KeyError, TypeError):
+        _set_download_progress(
+            status="preparing",
+            downloaded=0,
+            total=model["size_bytes"],
+            error="",
+        )
+
+        def report_progress(downloaded, total, status="downloading"):
+            with _download_progress_lock:
+                while _download_progress["status"] == "paused":
+                    _download_progress_lock.wait()
+                if _download_progress["status"] in {"cancelling", "cancelled"}:
+                    raise DownloadCancelled("Model download cancelled")
+                _download_progress.update(
+                    status=status,
+                    downloaded=downloaded,
+                    total=total or model["size_bytes"],
+                )
+                _download_progress_lock.notify_all()
+
+        install_recommended_model({"model": model}, progress_cb=report_progress)
+        _set_download_progress(
+            status="completed",
+            downloaded=model["size_bytes"],
+            total=model["size_bytes"],
+            error="",
+        )
+    except DownloadCancelled:
+        _set_download_progress(status="cancelled", error="")
+        return json_response({"status": "cancelled"}, status=409)
+    except (OSError, RuntimeError, ValueError, KeyError, TypeError) as error:
         logger.exception("Could not install selected settings model %s", model_id)
-        return json_response({"error": "Unable to install selected model"}, status=500)
+        message = str(error) or "Unable to install selected model"
+        _set_download_progress(status="error", error=message)
+        return json_response({"error": message}, status=500)
 
     return json_response({"status": "active", "id": model_id})
 

@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 import subprocess
 import sys
+from threading import Event, Thread
 from tempfile import TemporaryDirectory
 
 from django.test import Client, TestCase
@@ -75,11 +76,59 @@ class ChatCompletionTests(TestCase):
         self.assertEqual(reply, "A coherent reply.")
         post.assert_called_once()
         endpoint, kwargs = post.call_args
-        self.assertEqual(endpoint[0], "http://127.0.0.1:11434/v1/chat/completions")
-        self.assertEqual(kwargs["json"]["model"], "llama3.2:1b-instruct-q4_0")
+        self.assertEqual(endpoint[0], ai.OLLAMA_URL)
+        self.assertEqual(kwargs["json"]["model"], ai.MODEL)
         self.assertFalse(kwargs["json"]["stream"])
-        self.assertEqual(kwargs["json"]["messages"][-1], {"role": "user", "content": "Hello"})
+        self.assertEqual(
+            [message["role"] for message in kwargs["json"]["messages"]],
+            ["user"],
+        )
+        self.assertIn("You are Synola.", kwargs["json"]["messages"][0]["content"])
+        self.assertIn("Hello", kwargs["json"]["messages"][0]["content"])
         self.assertEqual(kwargs["timeout"], 120)
+
+    @patch("synola.services.ai.requests.post")
+    def test_generate_normalizes_system_and_repeated_roles(self, post):
+        response = Mock()
+        response.ok = True
+        response.json.return_value = {
+            "choices": [{"message": {"content": "A coherent reply."}}]
+        }
+        post.return_value = response
+
+        ai.generate([
+            {"role": "system", "content": "Conversation summary."},
+            {"role": "user", "content": "An unanswered earlier request."},
+            {"role": "user", "content": "The current request."},
+            {"role": "assistant", "content": "Prior assistant answer."},
+            {"role": "user", "content": "Follow-up."},
+        ])
+
+        payload = post.call_args.kwargs["json"]["messages"]
+        self.assertEqual(
+            [message["role"] for message in payload],
+            ["user", "assistant", "user"],
+        )
+        self.assertIn("Conversation summary.", payload[0]["content"])
+        self.assertIn("An unanswered earlier request.", payload[0]["content"])
+        self.assertIn("The current request.", payload[0]["content"])
+
+    @patch("synola.services.ai.requests.post")
+    def test_generate_summary_sends_user_role_for_strict_templates(self, post):
+        response = Mock()
+        response.ok = True
+        response.json.return_value = {
+            "choices": [{"message": {"content": "Summary."}}]
+        }
+        post.return_value = response
+
+        result = ai.generate_summary(
+            [{"role": "user", "content": "Hello"}]
+        )
+
+        self.assertEqual(result, "Summary.")
+        payload = post.call_args.kwargs["json"]["messages"]
+        self.assertEqual([message["role"] for message in payload], ["user"])
 
 
 class InferenceEngineTests(TestCase):
@@ -670,7 +719,59 @@ class ModelSettingsApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["id"], "verified-id")
-        install_model.assert_called_once_with({"model": catalog_model})
+        install_model.assert_called_once()
+        self.assertEqual(install_model.call_args.args, ({"model": catalog_model},))
+        progress_callback = install_model.call_args.kwargs["progress_cb"]
+        self.assertTrue(callable(progress_callback))
+        progress_state = {
+            "status": "preparing",
+            "downloaded": 0,
+            "total": 10,
+            "error": "",
+        }
+        with patch(
+            "synola.views._download_progress",
+            progress_state,
+        ):
+            progress_callback(4, 10)
+            progress = self.client.get("/models/settings/install/progress/")
+            paused = self.client.post(
+                "/models/settings/install/control/",
+                data={"action": "pause"},
+                content_type="application/json",
+            )
+            callback_started = Event()
+            callback_finished = Event()
+
+            def report_next_chunk():
+                callback_started.set()
+                progress_callback(6, 10)
+                callback_finished.set()
+
+            worker = Thread(target=report_next_chunk)
+            worker.start()
+            self.assertTrue(callback_started.wait(timeout=1))
+            self.assertFalse(callback_finished.wait(timeout=0.05))
+            resumed = self.client.post(
+                "/models/settings/install/control/",
+                data={"action": "resume"},
+                content_type="application/json",
+            )
+            self.assertTrue(callback_finished.wait(timeout=1))
+            worker.join(timeout=1)
+            cancelled = self.client.post(
+                "/models/settings/install/control/",
+                data={"action": "cancel"},
+                content_type="application/json",
+            )
+
+        self.assertEqual(progress.json()["status"], "downloading")
+        self.assertEqual(progress.json()["downloaded"], 4)
+        self.assertEqual(progress.json()["total"], 10)
+        self.assertEqual(paused.json()["status"], "paused")
+        self.assertEqual(resumed.json()["status"], "downloading")
+        self.assertEqual(cancelled.json()["status"], "cancelling")
+        self.assertEqual(progress_state["downloaded"], 6)
 
     @patch("synola.views.remove_active_model")
     def test_current_model_delete_endpoint_uses_model_manager(self, remove_model):

@@ -5,6 +5,11 @@ import os, shutil, hashlib, requests, time
 
 logger = logging.getLogger(__name__)
 
+
+class DownloadCancelled(Exception):
+    pass
+
+
 def download_model(url, dest_path, expected_sha_256=None, expected_size=None, progress_cb=None, max_retries=None):
     dest_path = str(dest_path)
     part_path = dest_path + ".part"
@@ -38,6 +43,10 @@ def download_model(url, dest_path, expected_sha_256=None, expected_size=None, pr
                         if progress_cb:
                             progress_cb(downloaded, total)
             break
+        except DownloadCancelled:
+            if os.path.exists(part_path):
+                os.remove(part_path)
+            raise
         except (requests.ConnectionError, requests.Timeout):
             logger.warning("Model download attempt %d failed", attempt + 1)
             if attempt == max_retries - 1:

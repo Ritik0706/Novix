@@ -1,17 +1,25 @@
 const messages = document.getElementById("messages"); // all messages
 const text = document.getElementById("msg"); // input message
 const imageInput = document.getElementById("image-input");
+document.getElementById("attach-file").addEventListener("click", () => {
+    imageInput.click();
+});
 
 const API_URL = "http://127.0.0.1:8000/chat/";
 const CONVERSATION_URL = "http://127.0.0.1:8000/conversations/";
 const MODEL_SETTINGS_URL = "http://127.0.0.1:8000/models/settings/";
 const INSTALL_MODEL_URL = "http://127.0.0.1:8000/models/settings/install/";
+const INSTALL_PROGRESS_URL = "http://127.0.0.1:8000/models/settings/install/progress/";
+const INSTALL_CONTROL_URL = "http://127.0.0.1:8000/models/settings/install/control/";
 const INSTALLED_MODELS_URL = "http://127.0.0.1:8000/models/installed/";
 const CURRENT_MODEL_URL = "http://127.0.0.1:8000/models/current/";
 let currentConversation = null;
 let modelSettings = null;
 let settingsOperationInProgress = false;
 let pendingSettingsAction = null;
+let downloadProgressPoll = null;
+let downloadProgressGeneration = 0;
+let downloadStatus = "idle";
 
 function formatBytes(bytes) {
     if (typeof bytes !== "number" || Number.isNaN(bytes)) return "-";
@@ -214,6 +222,103 @@ function setSettingsStatus(message, type = "") {
     status.textContent = message;
 }
 
+function updateDownloadProgress(progress) {
+    const modal = document.getElementById("download-progress-scrim");
+    const statusMessage = document.getElementById("download-progress-message");
+    const errorMessage = document.getElementById("download-progress-error");
+    const progressBar = document.getElementById("download-progress-bar");
+    const progressTrack = progressBar.parentElement;
+    const downloaded = Number(progress.downloaded) || 0;
+    const total = Number(progress.total) || 0;
+    downloadStatus = progress.status;
+    const finished = ["completed", "error", "cancelled"].includes(progress.status);
+    const cancelling = progress.status === "cancelling";
+    const percentage = total > 0 ? Math.min(100, Math.floor(downloaded / total * 100)) : 0;
+
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden", "false");
+    progressBar.style.width = `${percentage}%`;
+    progressTrack.setAttribute("aria-valuenow", String(percentage));
+    document.getElementById("download-progress-percent").textContent =
+        total > 0 ? `${percentage}%` : "—";
+    document.getElementById("download-progress-remaining").textContent =
+        total > 0
+            ? `${formatBytes(Math.max(0, total - downloaded))} remaining`
+            : `${formatBytes(downloaded)} downloaded`;
+    document.getElementById("download-spinner").hidden = finished || progress.status === "paused";
+    document.getElementById("download-progress-close").hidden = !finished;
+    const pauseButton = document.getElementById("download-progress-pause");
+    const cancelButton = document.getElementById("download-progress-cancel");
+    pauseButton.hidden = finished || cancelling;
+    cancelButton.hidden = finished;
+    pauseButton.disabled = cancelling;
+    cancelButton.disabled = cancelling;
+    pauseButton.textContent = progress.status === "paused" ? "Resume" : "Pause";
+    cancelButton.textContent = cancelling ? "Cancelling…" : "Cancel";
+    errorMessage.textContent = progress.status === "error"
+        ? progress.error || "The model download failed."
+        : "";
+
+    const messages = {
+        preparing: "Preparing download…",
+        downloading: "Downloading model…",
+        paused: "Download paused.",
+        cancelling: "Cancelling download…",
+        cancelled: "Download cancelled.",
+        finishing: "Validating and installing model…",
+        completed: "Download complete. The model is ready to use.",
+        error: "The model download could not be completed.",
+    };
+    statusMessage.textContent = messages[progress.status] || "Waiting for download progress…";
+    modal.classList.toggle("error", progress.status === "error");
+    modal.classList.toggle("completed", progress.status === "completed");
+    modal.classList.toggle("cancelled", progress.status === "cancelled");
+}
+
+function closeDownloadProgress() {
+    if (!document.getElementById("download-progress-close").hidden) {
+        const modal = document.getElementById("download-progress-scrim");
+        modal.classList.remove("open", "error", "completed", "cancelled");
+        modal.setAttribute("aria-hidden", "true");
+    }
+}
+
+async function controlModelDownload(action) {
+    const pauseButton = document.getElementById("download-progress-pause");
+    const cancelButton = document.getElementById("download-progress-cancel");
+    pauseButton.disabled = true;
+    cancelButton.disabled = true;
+    try {
+        const response = await fetch(INSTALL_CONTROL_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action }),
+        });
+        const progress = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(progress.error || `Unable to ${action} download`);
+        updateDownloadProgress(progress);
+    } catch (error) {
+        document.getElementById("download-progress-error").textContent =
+            error.message || `Unable to ${action} download`;
+        pauseButton.disabled = false;
+        cancelButton.disabled = false;
+    }
+}
+
+async function pollDownloadProgress(generation) {
+    try {
+        const response = await fetch(INSTALL_PROGRESS_URL, { cache: "no-store" });
+        const progress = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(progress.error || "Unable to retrieve download progress");
+        if (generation !== downloadProgressGeneration) return;
+        updateDownloadProgress(progress);
+    } catch (error) {
+        if (generation !== downloadProgressGeneration) return;
+        document.getElementById("download-progress-message").textContent =
+            error.message || "Unable to retrieve download progress";
+    }
+}
+
 function openSettingsPanel() {
     document.getElementById("card").classList.remove("open");
     const scrim = document.getElementById("settings-scrim");
@@ -254,6 +359,20 @@ function closeSettingsConfirmation() {
 async function installSettingsModel(model) {
     settingsOperationInProgress = true;
     setSettingsStatus(`Downloading and installing ${model.display_name}…`);
+    document.getElementById("download-progress-model").textContent = model.display_name;
+    document.getElementById("download-progress-error").textContent = "";
+    document.getElementById("download-progress-close").hidden = true;
+    document.getElementById("download-progress-scrim").classList.remove("cancelled");
+    updateDownloadProgress({
+        status: "preparing",
+        downloaded: 0,
+        total: model.size_bytes,
+    });
+    const progressGeneration = ++downloadProgressGeneration;
+    downloadProgressPoll = window.setInterval(
+        () => pollDownloadProgress(progressGeneration),
+        500,
+    );
     renderSettingsModels(modelSettings.models, getActiveModel(), modelSettings.installed_models);
     try {
         const response = await fetch(INSTALL_MODEL_URL, {
@@ -262,12 +381,29 @@ async function installSettingsModel(model) {
             body: JSON.stringify({ id: model.id }),
         });
         const data = await response.json().catch(() => ({}));
+        if (data.status === "cancelled") {
+            updateDownloadProgress({ ...data, downloaded: 0, total: model.size_bytes });
+            setSettingsStatus(`${model.display_name} download was cancelled.`, "error");
+            return;
+        }
         if (!response.ok) throw new Error(data.error || "Model installation failed");
         await loadModelSettings();
+        updateDownloadProgress({
+            status: "completed",
+            downloaded: model.size_bytes,
+            total: model.size_bytes,
+        });
         setSettingsStatus(`${model.display_name} is now active.`, "success");
     } catch (error) {
+        updateDownloadProgress({
+            status: "error",
+            error: error.message || "Model installation failed",
+        });
         setSettingsStatus(error.message || "Model installation failed", "error");
     } finally {
+        window.clearInterval(downloadProgressPoll);
+        downloadProgressPoll = null;
+        downloadProgressGeneration++;
         settingsOperationInProgress = false;
         if (modelSettings) {
             renderSettingsModels(
@@ -439,6 +575,13 @@ document.getElementById("settings-model-list").addEventListener("click", (event)
     } else {
         installSettingsModel(model);
     }
+});
+document.getElementById("download-progress-close").addEventListener("click", closeDownloadProgress);
+document.getElementById("download-progress-pause").addEventListener("click", () => {
+    controlModelDownload(downloadStatus === "paused" ? "resume" : "pause");
+});
+document.getElementById("download-progress-cancel").addEventListener("click", () => {
+    controlModelDownload("cancel");
 });
 document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
@@ -943,6 +1086,18 @@ async function loadMessages(id) {
 // close btn
 document.getElementById("closeBtn").addEventListener("click", () => {
     window.electronAPI.closeWindow();
+});
+
+const maximizeButton = document.getElementById("maximizeBtn");
+maximizeButton.addEventListener("click", () => {
+    window.electronAPI.toggleMaximize();
+});
+window.electronAPI.onWindowMaximizeState((isMaximized) => {
+    const action = isMaximized ? "Restore" : "Maximize";
+    maximizeButton.setAttribute("aria-label", `${action} window`);
+    maximizeButton.setAttribute("title", `${action} window`);
+    maximizeButton.setAttribute("aria-pressed", String(isMaximized));
+    document.getElementById("card").classList.toggle("maximized", isMaximized);
 });
 
 initConversations();

@@ -217,6 +217,8 @@ function createWindow() {
   const window = new BrowserWindow({
     width: windowWidth,
     height: windowHeight,
+    minWidth: 320,
+    minHeight: 420,
     x: Math.max(20, width - windowWidth - 20),
     y: Math.max(20, height - windowHeight - 20),
     frame: false,
@@ -228,6 +230,13 @@ function createWindow() {
       contextIsolation: true,
     },
   });
+
+  const sendMaximizeState = () => {
+    window.webContents.send("window-maximize-state", window.isMaximized());
+  };
+  window.on("maximize", sendMaximizeState);
+  window.on("unmaximize", sendMaximizeState);
+  window.webContents.on("did-finish-load", sendMaximizeState);
 
   window.loadFile(path.join(__dirname, "renderer", "chat.html"));
 }
@@ -254,6 +263,17 @@ ipcMain.on("close-window", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (win) {
     win.close();
+  }
+});
+
+ipcMain.on("toggle-maximize-window", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return;
+
+  if (win.isMaximized()) {
+    win.unmaximize();
+  } else {
+    win.maximize();
   }
 });
 
