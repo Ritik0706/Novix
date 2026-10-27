@@ -266,6 +266,13 @@ ipcMain.on("close-window", (event) => {
   }
 });
 
+ipcMain.on("minimize-window", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    win.minimize();
+  }
+});
+
 ipcMain.on("toggle-maximize-window", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) return;

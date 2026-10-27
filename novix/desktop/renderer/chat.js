@@ -1088,6 +1088,10 @@ document.getElementById("closeBtn").addEventListener("click", () => {
     window.electronAPI.closeWindow();
 });
 
+document.getElementById("minimizeBtn").addEventListener("click", () => {
+    window.electronAPI.minimizeWindow();
+});
+
 const maximizeButton = document.getElementById("maximizeBtn");
 maximizeButton.addEventListener("click", () => {
     window.electronAPI.toggleMaximize();
